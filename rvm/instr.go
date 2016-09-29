@@ -1,6 +1,9 @@
 package rvm
 
-import "fmt"
+import (
+	"fmt"
+	"strconv"
+)
 
 type Instruction uint32
 
@@ -47,15 +50,23 @@ func (i Instruction) flags() uint32 {
 
 func (i Instruction) String() string {
 	switch op := i.Opcode(); op {
+	// Binary
 	case OpAdd, OpSub, OpDiv, OpMul, OpPow, OpMod,
-		OpAnd, OpXor, OpArithshift, OpBitshift:
-		// binary instruction: out[reg] = a[reg] OP b[const|stack|reg]
+		OpOr, OpAnd, OpXor, OpArithshift, OpBitshift:
 		return fmt.Sprint(op, i.regOut(), " ", i.argA(), " ", i.argB())
-	case OpNeg, OpFloor, OpCeil:
-		// unary instruction: out[reg] = OP a[reg]
-		return fmt.Sprint(op, i.regOut(), " ", i.argA())
+	// Unary
+	case OpNeg, OpNot, OpFloor, OpCeil, OpRound, OpRint,
+		OpJump, OpPush, OpPop, OpLoad, OpDefer, OpJoin:
+		// TODO: Fix per-unary string (e.g., load differs from neg)
+		return fmt.Sprint(op, i.regOut(), " ", i.argA(), " ", i.argB())
+	// Cond
+	case OpEq, OpLe, OpLt:
+		return fmt.Sprint(op, i.regOut(), " ", i.argA(), " ", i.argB())
+	// Frame
+	case OpCall, OpReturn:
+		return fmt.Sprint(op, i.regOut(), " ", i.argA(), " ", i.argB())
 	default:
-		panic("unimplemented")
+		return "unknown opcode for instruction " + strconv.FormatUint(uint64(i), 16)
 	}
 }
 
