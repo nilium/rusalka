@@ -53,6 +53,7 @@ const (
 	OpCall
 	OpReturn
 	OpDefer
+	OpFork
 	OpJoin
 )
 
@@ -84,6 +85,7 @@ var opNames = [...]string{
 	OpCall:       `call`,
 	OpReturn:     `return`,
 	OpDefer:      `defer`,
+	OpFork:       `fork`,
 	OpJoin:       `join`,
 }
 
@@ -250,6 +252,9 @@ var opFuncTable = [...]opFunc{
 	},
 
 	OpDefer: func(instr Instruction, vm *Thread) {
+	},
+
+	OpFork: func(instr Instruction, vm *Thread) {
 	},
 
 	OpJoin: func(instr Instruction, vm *Thread) {
