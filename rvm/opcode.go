@@ -172,15 +172,47 @@ var opFuncTable = [...]opFunc{
 	},
 
 	OpFloor: func(instr Instruction, vm *Thread) {
+		var (
+			out = instr.regOut()
+			val = toarith(instr.argA().load(vm))
+		)
+		if f, ok := val.(vnum); ok {
+			val = vnum(round(float64(f), rndCeil))
+		}
+		out.store(vm, val)
 	},
 
 	OpCeil: func(instr Instruction, vm *Thread) {
+		var (
+			out = instr.regOut()
+			val = toarith(instr.argA().load(vm))
+		)
+		if f, ok := val.(vnum); ok {
+			val = vnum(round(float64(f), rndFloor))
+		}
+		out.store(vm, val)
 	},
 
 	OpRound: func(instr Instruction, vm *Thread) {
+		var (
+			out = instr.regOut()
+			val = toarith(instr.argA().load(vm))
+		)
+		if f, ok := val.(vnum); ok {
+			val = vnum(round(float64(f), rndNearest))
+		}
+		out.store(vm, val)
 	},
 
 	OpRint: func(instr Instruction, vm *Thread) {
+		var (
+			out = instr.regOut()
+			val = toarith(instr.argA().load(vm))
+		)
+		if f, ok := val.(vnum); ok {
+			val = vnum(round(float64(f), rndTrunc))
+		}
+		out.store(vm, val)
 	},
 
 	OpEq: func(instr Instruction, vm *Thread) {
