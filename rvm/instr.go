@@ -12,13 +12,14 @@ func (i Instruction) Opcode() Opcode {
 }
 
 // Basic operator instruction
-// 1   8   9   13  30   MASK     - DESCRIPTION
-// |   |   |   |   +--- E0000000 - Flag bits (3): 1 - input is const; 2 - argB is stack; 3 - argA is stack.
-// |   |   |   +------- 1FFC0000 - Input operand (11)
-// |   |   +----------- 0003E000 - Input register / stack 0-31 (5) (relative stack if flag 3 set)
-// |   |   +----------- 00001F00 - Output register 0-31 (5)
-// |   +--------------- 00000080 - Reserved
-// +------------------- 0000007F - Opcode 0-127 (7)
+// 0   7   8   13  18  29   MASK     - DESCRIPTION
+// |   |   |   |   |   |
+// |   |   |   |   |   +--- E0000000 - Flag bits (3): 1 - input is const; 2 - argB is stack; 3 - argA is stack.
+// |   |   |   |   +------- 1FFC0000 - Input operand (11)
+// |   |   |   +----------- 0003E000 - Input register / stack 0-31 (5) (relative stack if flag 3 set)
+// |   |   +--------------- 00001F00 - Output register 0-31 (5)
+// |   +------------------- 00000080 - Reserved (1)
+// +----------------------- 0000007F - Opcode 0-127 (7)
 //
 // All instructions share the first 8 bits at a minimum, with the 8th bit reserved for signalling that an opcode is part
 // an extended instruction set. How it'll work, in practice, isn't defined yet. Rusalka in C++ had room for user-defined
