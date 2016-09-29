@@ -1,0 +1,6 @@
+.DS_Store
+~*
+.*.s[a-z][a-z]
+*.rbc
+*.skip
+*.ignore
