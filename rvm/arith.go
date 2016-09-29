@@ -34,54 +34,54 @@ type (
 	vint  int64
 	vuint uint64
 
-	arithValue interface {
-		add(arithValue) arithValue
-		neg() arithValue
-		mul(arithValue) arithValue
-		div(arithValue) arithValue
-		mod(arithValue) arithValue
-		pow(arithValue) arithValue
-		sqrt() arithValue
+	Arith interface {
+		Add(Arith) Arith
+		Neg() Arith
+		Mul(Arith) Arith
+		Div(Arith) Arith
+		Mod(Arith) Arith
+		Pow(Arith) Arith
+		Sqrt() Arith
 	}
 
-	bitsValue interface {
-		arithValue
-		xor(bitsValue) bitsValue
-		and(bitsValue) bitsValue
-		or(bitsValue) bitsValue
-		not() bitsValue
+	Bitwise interface {
+		Arith
+		Xor(Bitwise) Bitwise
+		And(Bitwise) Bitwise
+		Or(Bitwise) Bitwise
+		Not() Bitwise
 	}
 
-	floatValuer interface {
+	FloatValuer interface {
 		Float64() float64
 	}
 
-	intValuer interface {
+	IntValuer interface {
 		Int64() int64
 	}
 )
 
 var (
-	_ arithValue = vnum(0)
-	_ arithValue = vint(0)
-	_ arithValue = vuint(0)
+	_ Arith = vnum(0)
+	_ Arith = vint(0)
+	_ Arith = vuint(0)
 )
 
 // Float64
 
-func (lhs vnum) Float64() float64              { return float64(lhs) }
-func (lhs vnum) Int64() int64                  { return int64(lhs) }
-func (lhs vnum) add(rhs arithValue) arithValue { return lhs + tovnum(rhs) }
-func (lhs vnum) mul(rhs arithValue) arithValue { return lhs * tovnum(rhs) }
-func (lhs vnum) div(rhs arithValue) arithValue { return lhs / tovnum(rhs) }
-func (lhs vnum) neg() arithValue               { return -lhs }
-func (lhs vnum) sqrt() arithValue              { return vnum(math.Sqrt(float64(lhs))) }
+func (lhs vnum) Float64() float64    { return float64(lhs) }
+func (lhs vnum) Int64() int64        { return int64(lhs) }
+func (lhs vnum) Add(rhs Arith) Arith { return lhs + tovnum(rhs) }
+func (lhs vnum) Mul(rhs Arith) Arith { return lhs * tovnum(rhs) }
+func (lhs vnum) Div(rhs Arith) Arith { return lhs / tovnum(rhs) }
+func (lhs vnum) Neg() Arith          { return -lhs }
+func (lhs vnum) Sqrt() Arith         { return vnum(math.Sqrt(float64(lhs))) }
 
-func (lhs vnum) pow(rhs arithValue) arithValue {
+func (lhs vnum) Pow(rhs Arith) Arith {
 	return vnum(math.Pow(float64(lhs), float64(tovnum(rhs))))
 }
 
-func (lhs vnum) mod(rhs arithValue) arithValue {
+func (lhs vnum) Mod(rhs Arith) Arith {
 	return vnum(math.Mod(float64(lhs), float64(tovnum(rhs))))
 }
 
@@ -89,9 +89,9 @@ func (lhs vnum) mod(rhs arithValue) arithValue {
 
 func (lhs vint) Float64() float64 { return float64(lhs) }
 func (lhs vint) Int64() int64     { return int64(lhs) }
-func (lhs vint) neg() arithValue  { return -lhs }
+func (lhs vint) Neg() Arith       { return -lhs }
 
-func (lhs vint) add(rhs arithValue) arithValue {
+func (lhs vint) Add(rhs Arith) Arith {
 	switch rhs := toarith(rhs).(type) {
 	case vint:
 		return vint(int64(lhs) + int64(rhs))
@@ -103,7 +103,7 @@ func (lhs vint) add(rhs arithValue) arithValue {
 	panic("unreachable")
 }
 
-func (lhs vint) mul(rhs arithValue) arithValue {
+func (lhs vint) Mul(rhs Arith) Arith {
 	switch rhs := toarith(rhs).(type) {
 	case vint:
 		return vint(int64(lhs) * int64(rhs))
@@ -115,7 +115,7 @@ func (lhs vint) mul(rhs arithValue) arithValue {
 	panic("unreachable")
 }
 
-func (lhs vint) div(rhs arithValue) arithValue {
+func (lhs vint) Div(rhs Arith) Arith {
 	switch rhs := toarith(rhs).(type) {
 	case vint:
 		return vint(int64(lhs) / int64(rhs))
@@ -127,7 +127,7 @@ func (lhs vint) div(rhs arithValue) arithValue {
 	panic("unreachable")
 }
 
-func (lhs vint) mod(rhs arithValue) arithValue {
+func (lhs vint) Mod(rhs Arith) Arith {
 	switch rhs := toarith(rhs).(type) {
 	case vint:
 		return vint(int64(lhs) % int64(rhs))
@@ -139,9 +139,9 @@ func (lhs vint) mod(rhs arithValue) arithValue {
 	panic("unreachable")
 }
 
-func (lhs vint) sqrt() arithValue { return vint(math.Sqrt(float64(lhs))) }
+func (lhs vint) Sqrt() Arith { return vint(math.Sqrt(float64(lhs))) }
 
-func (lhs vint) pow(rhs arithValue) arithValue {
+func (lhs vint) Pow(rhs Arith) Arith {
 	switch rhs := toarith(rhs).(type) {
 	case vint:
 		if rhs == 0 {
@@ -171,9 +171,9 @@ func (lhs vint) pow(rhs arithValue) arithValue {
 
 func (lhs vuint) Float64() float64 { return float64(lhs) }
 func (lhs vuint) Int64() int64     { return int64(lhs) }
-func (lhs vuint) neg() arithValue  { return -lhs }
+func (lhs vuint) Neg() Arith       { return -lhs }
 
-func (lhs vuint) add(rhs arithValue) arithValue {
+func (lhs vuint) Add(rhs Arith) Arith {
 	switch rhs := toarith(rhs).(type) {
 	case vuint:
 		return vuint(uint64(lhs) + uint64(rhs))
@@ -185,7 +185,7 @@ func (lhs vuint) add(rhs arithValue) arithValue {
 	panic("unreachable")
 }
 
-func (lhs vuint) mul(rhs arithValue) arithValue {
+func (lhs vuint) Mul(rhs Arith) Arith {
 	switch rhs := toarith(rhs).(type) {
 	case vuint:
 		return vint(uint64(lhs) * uint64(rhs))
@@ -197,7 +197,7 @@ func (lhs vuint) mul(rhs arithValue) arithValue {
 	panic("unreachable")
 }
 
-func (lhs vuint) div(rhs arithValue) arithValue {
+func (lhs vuint) Div(rhs Arith) Arith {
 	switch rhs := toarith(rhs).(type) {
 	case vuint:
 		return vint(uint64(lhs) / uint64(rhs))
@@ -209,7 +209,7 @@ func (lhs vuint) div(rhs arithValue) arithValue {
 	panic("unreachable")
 }
 
-func (lhs vuint) mod(rhs arithValue) arithValue {
+func (lhs vuint) Mod(rhs Arith) Arith {
 	switch rhs := toarith(rhs).(type) {
 	case vuint:
 		return vint(uint64(lhs) % uint64(rhs))
@@ -221,9 +221,9 @@ func (lhs vuint) mod(rhs arithValue) arithValue {
 	panic("unreachable")
 }
 
-func (lhs vuint) sqrt() arithValue { return vuint(math.Sqrt(float64(lhs))) }
+func (lhs vuint) Sqrt() Arith { return vuint(math.Sqrt(float64(lhs))) }
 
-func (lhs vuint) pow(rhs arithValue) arithValue {
+func (lhs vuint) Pow(rhs Arith) Arith {
 	switch rhs := toarith(rhs).(type) {
 	case vuint:
 		if rhs == 0 {
@@ -249,7 +249,7 @@ func (lhs vuint) pow(rhs arithValue) arithValue {
 	panic("unreachable")
 }
 
-func toarith(v interface{}) (r arithValue) {
+func toarith(v Value) (r Arith) {
 	switch v := v.(type) {
 	case vnum:
 		f := float64(v)
@@ -258,9 +258,9 @@ func toarith(v interface{}) (r arithValue) {
 		return v
 	case vuint:
 		return v
-	case floatValuer:
+	case FloatValuer:
 		return vnum(v.Float64())
-	case intValuer:
+	case IntValuer:
 		return vint(v.Int64())
 	case int:
 		return vint(v)
@@ -289,7 +289,7 @@ func toarith(v interface{}) (r arithValue) {
 	}
 }
 
-func tovnum(v interface{}) vnum {
+func tovnum(v Value) vnum {
 	switch v := toarith(v).(type) {
 	case vnum:
 		return v
@@ -301,7 +301,7 @@ func tovnum(v interface{}) vnum {
 	panic("unreachable")
 }
 
-func tovint(v interface{}) vint {
+func tovint(v Value) vint {
 	switch v := toarith(v).(type) {
 	case vint:
 		return v
@@ -313,7 +313,7 @@ func tovint(v interface{}) vint {
 	panic("unreachable")
 }
 
-func tovuint(v interface{}) vuint {
+func tovuint(v Value) vuint {
 	switch v := toarith(v).(type) {
 	case vint:
 		return vuint(v)

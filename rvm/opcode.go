@@ -99,7 +99,7 @@ var opFuncTable = [...]opFunc{
 			lhs = toarith(instr.argA().load(vm))
 			rhs = toarith(instr.argB().load(vm))
 		)
-		out.store(vm, lhs.add(rhs))
+		out.store(vm, lhs.Add(rhs))
 	},
 
 	OpSub: func(instr Instruction, vm *Thread) {
@@ -108,7 +108,7 @@ var opFuncTable = [...]opFunc{
 			lhs = toarith(instr.argA().load(vm))
 			rhs = toarith(instr.argB().load(vm))
 		)
-		out.store(vm, lhs.add(rhs.neg()))
+		out.store(vm, lhs.Add(rhs.Neg()))
 	},
 
 	OpDiv: func(instr Instruction, vm *Thread) {
@@ -117,7 +117,7 @@ var opFuncTable = [...]opFunc{
 			lhs = toarith(instr.argA().load(vm))
 			rhs = toarith(instr.argB().load(vm))
 		)
-		out.store(vm, lhs.div(rhs))
+		out.store(vm, lhs.Div(rhs))
 	},
 
 	OpMul: func(instr Instruction, vm *Thread) {
@@ -126,7 +126,7 @@ var opFuncTable = [...]opFunc{
 			lhs = toarith(instr.argA().load(vm))
 			rhs = toarith(instr.argB().load(vm))
 		)
-		out.store(vm, lhs.mul(rhs))
+		out.store(vm, lhs.Mul(rhs))
 	},
 
 	OpPow: func(instr Instruction, vm *Thread) {
@@ -135,7 +135,7 @@ var opFuncTable = [...]opFunc{
 			lhs = toarith(instr.argA().load(vm))
 			rhs = toarith(instr.argB().load(vm))
 		)
-		out.store(vm, lhs.pow(rhs))
+		out.store(vm, lhs.Pow(rhs))
 	},
 
 	OpMod: func(instr Instruction, vm *Thread) {
@@ -144,7 +144,7 @@ var opFuncTable = [...]opFunc{
 			lhs = toarith(instr.argA().load(vm))
 			rhs = toarith(instr.argB().load(vm))
 		)
-		out.store(vm, lhs.mod(rhs))
+		out.store(vm, lhs.Mod(rhs))
 	},
 
 	OpNeg: func(instr Instruction, vm *Thread) {
@@ -152,7 +152,7 @@ var opFuncTable = [...]opFunc{
 			out  = instr.regOut()
 			recv = toarith(instr.argA().load(vm))
 		)
-		out.store(vm, recv.neg())
+		out.store(vm, recv.Neg())
 	},
 
 	OpNot: func(instr Instruction, vm *Thread) {

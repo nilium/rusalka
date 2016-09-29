@@ -6,7 +6,7 @@ func TestOpAdd(t *testing.T) {
 	th := NewThread()
 
 	fn := funcData{
-		consts: []interface{}{10.3},
+		consts: []Value{10.3},
 	}
 	th.pushFrame(0, fn)
 	th.Push(5)

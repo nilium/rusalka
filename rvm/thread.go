@@ -6,6 +6,10 @@ import (
 	"strconv"
 )
 
+// value is a general type for any type that can appear in the stack, registers, or constants table. It is currently the
+// empty interface due to lack of specification around types while at least retaining concrete type information.
+type Value interface{}
+
 const (
 	registerCount = 32
 	registerMin   = -2147483648
@@ -28,7 +32,7 @@ type funcData struct {
 	// PC for the function
 	pc int64
 	// constants that may be referenced by instructions
-	consts []interface{}
+	consts []Value
 
 	// NOTE: Consider adding a constant page-shifting instruction to handle constants outside a [0, 2047] range.
 }
@@ -41,8 +45,8 @@ type stackFrame struct {
 
 type Thread struct {
 	pc     int64
-	reg    [registerCount]interface{}
-	stack  []interface{}
+	reg    [registerCount]Value
+	stack  []Value
 	frames []stackFrame
 }
 
@@ -52,7 +56,7 @@ func NewThread() *Thread {
 	const defaultFrameSize = 16
 
 	th := &Thread{
-		stack:  make([]interface{}, 0, defaultStackSize),
+		stack:  make([]Value, 0, defaultStackSize),
 		frames: make([]stackFrame, 0, defaultFrameSize),
 	}
 	return th
@@ -84,11 +88,11 @@ func (th *Thread) popFrame(keep int) {
 	*frame = stackFrame{}
 }
 
-func (th *Thread) Push(v interface{}) {
+func (th *Thread) Push(v Value) {
 	th.stack = append(th.stack, v)
 }
 
-func (th *Thread) Pop() (v interface{}) {
+func (th *Thread) Pop() (v Value) {
 	top := len(th.stack) - 1
 	if top < 0 {
 		panic(ErrUnderflow)
@@ -98,7 +102,7 @@ func (th *Thread) Pop() (v interface{}) {
 	return v
 }
 
-func (th *Thread) At(i Index) interface{} {
+func (th *Thread) At(i Index) Value {
 	if i == nil {
 		panic("nil index")
 	}
@@ -123,8 +127,8 @@ func (th *Thread) shrinkStack(top int) {
 
 type (
 	Index interface {
-		load(th *Thread) interface{}
-		store(th *Thread, v interface{})
+		load(th *Thread) Value
+		store(th *Thread, v Value)
 	}
 
 	pcIndex       struct{}
@@ -153,11 +157,11 @@ func (i constIndex) String() string {
 	return "const[" + strconv.Itoa(int(i)) + "]"
 }
 
-func (i constIndex) load(th *Thread) interface{} {
+func (i constIndex) load(th *Thread) Value {
 	return th.frames[len(th.frames)-1].consts[int(i)]
 }
 
-func (constIndex) store(*Thread, interface{}) {
+func (constIndex) store(*Thread, Value) {
 	panic(errConstStore)
 }
 
@@ -181,11 +185,11 @@ func (i StackIndex) Abs(th *Thread) StackIndex {
 	return StackIndex(i.abs(th))
 }
 
-func (i StackIndex) load(th *Thread) interface{} {
+func (i StackIndex) load(th *Thread) Value {
 	return th.stack[i.abs(th)]
 }
 
-func (i StackIndex) store(th *Thread, v interface{}) {
+func (i StackIndex) store(th *Thread, v Value) {
 	th.stack[i.abs(th)] = v
 }
 
@@ -193,21 +197,21 @@ func (i RegisterIndex) String() string {
 	return "%" + strconv.Itoa(int(i))
 }
 
-func (i RegisterIndex) load(th *Thread) interface{} {
+func (i RegisterIndex) load(th *Thread) Value {
 	if i < 0 || int(i) > len(th.reg) {
 		panic(InvalidRegister(i))
 	}
 	return th.reg[int(i)]
 }
 
-func (i RegisterIndex) store(th *Thread, v interface{}) {
+func (i RegisterIndex) store(th *Thread, v Value) {
 	if i < 0 || int(i) > len(th.reg) {
 		panic(InvalidRegister(i))
 	}
 	th.reg[int(i)] = v
 }
 
-func (pcIndex) load(th *Thread) interface{} {
+func (pcIndex) load(th *Thread) Value {
 	return th.pc
 }
 
@@ -215,7 +219,7 @@ func (pcIndex) String() string {
 	return "%pc"
 }
 
-func (pcIndex) store(th *Thread, v interface{}) {
+func (pcIndex) store(th *Thread, v Value) {
 	var next int64
 	switch i := v.(type) {
 	case int:
