@@ -156,21 +156,27 @@ var opFuncTable = [...]opFunc{
 	},
 
 	OpNot: func(instr Instruction, vm *Thread) {
+		panic("unimplemented")
 	},
 
 	OpOr: func(instr Instruction, vm *Thread) {
+		panic("unimplemented")
 	},
 
 	OpAnd: func(instr Instruction, vm *Thread) {
+		panic("unimplemented")
 	},
 
 	OpXor: func(instr Instruction, vm *Thread) {
+		panic("unimplemented")
 	},
 
 	OpArithshift: func(instr Instruction, vm *Thread) {
+		panic("unimplemented")
 	},
 
 	OpBitshift: func(instr Instruction, vm *Thread) {
+		panic("unimplemented")
 	},
 
 	OpFloor: func(instr Instruction, vm *Thread) {
@@ -218,12 +224,15 @@ var opFuncTable = [...]opFunc{
 	},
 
 	OpEq: func(instr Instruction, vm *Thread) {
+		panic("unimplemented")
 	},
 
 	OpLe: func(instr Instruction, vm *Thread) {
+		panic("unimplemented")
 	},
 
 	OpLt: func(instr Instruction, vm *Thread) {
+		panic("unimplemented")
 	},
 
 	OpJump: func(instr Instruction, vm *Thread) {
@@ -246,17 +255,22 @@ var opFuncTable = [...]opFunc{
 	},
 
 	OpCall: func(instr Instruction, vm *Thread) {
+		panic("unimplemented")
 	},
 
 	OpReturn: func(instr Instruction, vm *Thread) {
+		panic("unimplemented")
 	},
 
 	OpDefer: func(instr Instruction, vm *Thread) {
+		panic("unimplemented")
 	},
 
 	OpFork: func(instr Instruction, vm *Thread) {
+		panic("unimplemented")
 	},
 
 	OpJoin: func(instr Instruction, vm *Thread) {
+		panic("unimplemented")
 	},
 }
