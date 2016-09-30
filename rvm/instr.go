@@ -38,7 +38,11 @@ func (i Instruction) argA() Index {
 }
 
 func (i Instruction) argAX() int {
-	return int(int32((i << 15)) >> 28)
+	return int(int32((i << 14)) >> 27)
+}
+
+func (i Instruction) argAU() uint {
+	return uint(i>>13) & 0x1F
 }
 
 func (i Instruction) argB() Index {
