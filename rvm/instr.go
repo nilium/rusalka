@@ -65,10 +65,12 @@ func (i Instruction) String() string {
 		// Unary
 	case OpGrow, OpShrink:
 		return fmt.Sprint(op, i.argB())
-	case OpLoad, OpPush:
+	case OpLoad:
 		return fmt.Sprint(op, i.regOut(), i.argB())
 	case OpPop:
 		return fmt.Sprint(op, i.regOut())
+	case OpPush:
+		return fmt.Sprint(op, i.argB())
 	case OpNeg, OpNot, OpFloor, OpCeil, OpRound, OpRint,
 		OpJump, OpDefer, OpJoin:
 		// TODO: Fix per-unary string (e.g., load differs from neg)
