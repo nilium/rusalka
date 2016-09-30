@@ -49,6 +49,8 @@ const (
 	OpJump
 	OpPush
 	OpPop
+	OpGrow
+	OpShrink
 	OpLoad
 	OpCall
 	OpReturn
@@ -81,6 +83,8 @@ var opNames = [...]string{
 	OpJump:       `jump`,
 	OpPush:       `push`,
 	OpPop:        `pop`,
+	OpGrow:       `grow`,
+	OpShrink:     `shrink`,
 	OpLoad:       `load`,
 	OpCall:       `call`,
 	OpReturn:     `return`,
@@ -247,6 +251,29 @@ var opFuncTable = [...]opFunc{
 	// pop reg
 	OpPop: func(instr Instruction, vm *Thread) {
 		instr.regOut().store(vm, vm.Pop())
+	},
+
+	OpGrow: func(instr Instruction, vm *Thread) {
+		sz := int(tovint(instr.argB().load(vm)))
+		vm.growStack(sz)
+	},
+
+	OpShrink: func(instr Instruction, vm *Thread) {
+		var (
+			sz  = int(tovint(instr.argB().load(vm)))
+			ebp = vm.ebp
+			nsz int
+		)
+		if sz < 0 {
+			nsz = len(vm.stack) + sz
+		} else {
+			nsz = ebp + sz
+		}
+
+		if nsz < ebp {
+			panic(ErrUnderflow)
+		}
+		vm.resizeStack(nsz)
 	},
 
 	// load out - {reg|const|stack}

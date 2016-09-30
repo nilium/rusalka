@@ -61,22 +61,24 @@ func (i Instruction) String() string {
 	// Binary
 	case OpAdd, OpSub, OpDiv, OpMul, OpPow, OpMod,
 		OpOr, OpAnd, OpXor, OpArithshift, OpBitshift:
-		return fmt.Sprint(op, i.regOut(), " ", i.argA(), " ", i.argB())
+		return fmt.Sprint(op, i.regOut(), i.argA(), i.argB())
 		// Unary
+	case OpGrow, OpShrink:
+		return fmt.Sprint(op, i.argB())
 	case OpLoad, OpPush:
-		return fmt.Sprint(op, i.regOut(), " ", i.argB())
+		return fmt.Sprint(op, i.regOut(), i.argB())
 	case OpPop:
 		return fmt.Sprint(op, i.regOut())
 	case OpNeg, OpNot, OpFloor, OpCeil, OpRound, OpRint,
 		OpJump, OpDefer, OpJoin:
 		// TODO: Fix per-unary string (e.g., load differs from neg)
-		return fmt.Sprint(op, i.regOut(), " ", i.argA(), " ", i.argB())
+		return fmt.Sprint(op, i.regOut(), i.argA(), i.argB())
 	// Cond
 	case OpEq, OpLe, OpLt:
-		return fmt.Sprint(op, i.regOut(), " ", i.argA(), " ", i.argB())
+		return fmt.Sprint(op, i.regOut(), i.argA(), i.argB())
 	// Frame
 	case OpCall, OpReturn:
-		return fmt.Sprint(op, i.regOut(), " ", i.argA(), " ", i.argB())
+		return fmt.Sprint(op, i.regOut(), i.argA(), i.argB())
 	default:
 		return "<unknown opcode for instruction " + strconv.FormatUint(uint64(i), 16) + ">"
 	}
