@@ -9,12 +9,10 @@ func mkBinaryInstr(op Opcode, out RegisterIndex, argA, argB Index) Instruction {
 	switch argA := argA.(type) {
 	case nil:
 	case StackIndex:
-		if argA >= 0 {
-			panic("argA stack index must be relative")
-		} else if argA < -0x1F {
+		if argA < -16 || argA > 15 {
 			panic(InvalidStackIndex(argA))
 		}
-		instr |= opBinArgAStack | (uint32(-argA)&0x1F)<<13
+		instr |= (uint32(int32(argA)<<27)&0xF8000000)>>14 | opBinArgAStack
 	case RegisterIndex:
 		instr |= (uint32(argA) & 0x1F) << 13
 	default:
@@ -24,12 +22,10 @@ func mkBinaryInstr(op Opcode, out RegisterIndex, argA, argB Index) Instruction {
 	switch argB := argB.(type) {
 	case nil:
 	case StackIndex:
-		if argB >= 0 {
-			panic("argB stack index must be relative")
-		} else if argB < -0x7FF {
+		if argB < -1024 || argB > 1023 {
 			panic(InvalidStackIndex(argB))
 		}
-		instr |= (uint32(-argB)&0x7FF)<<18 | opBinArgBStack
+		instr |= (uint32(int32(argB)<<21)&0xFFE00000)>>3 | opBinArgBStack
 	case RegisterIndex:
 		instr |= uint32(argB&0x1F) << 18
 	case constIndex:

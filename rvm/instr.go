@@ -31,23 +31,25 @@ func (i Instruction) regOut() RegisterIndex {
 }
 
 func (i Instruction) argA() Index {
-	a := (i >> 13) & 0x1F
 	if i.flags()&opBinArgAStack != 0 {
-		return StackIndex(-int(a))
+		return StackIndex(int32(i<<14) >> 27)
 	}
-	return RegisterIndex(a)
+	return RegisterIndex((i >> 13) & 0x1F)
+}
+
+func (i Instruction) argAX() int {
+	return int(int32((i << 15)) >> 28)
 }
 
 func (i Instruction) argB() Index {
-	idx := uint16(i>>18) & 0x7FF
 	flags := i.flags()
 	switch {
 	case flags&opBinArgBConst != 0:
-		return constIndex(idx)
+		return constIndex(uint16(i>>18) & 0x7FF)
 	case flags&opBinArgBStack != 0:
-		return StackIndex(-int(idx))
+		return StackIndex(int32(i<<3) >> 21)
 	}
-	return RegisterIndex(idx & 0x1F)
+	return RegisterIndex(uint16(i>>18) & 0x1F)
 }
 
 func (i Instruction) flags() uint32 {
@@ -60,9 +62,13 @@ func (i Instruction) String() string {
 	case OpAdd, OpSub, OpDiv, OpMul, OpPow, OpMod,
 		OpOr, OpAnd, OpXor, OpArithshift, OpBitshift:
 		return fmt.Sprint(op, i.regOut(), " ", i.argA(), " ", i.argB())
-	// Unary
+		// Unary
+	case OpLoad, OpPush:
+		return fmt.Sprint(op, i.regOut(), " ", i.argB())
+	case OpPop:
+		return fmt.Sprint(op, i.regOut())
 	case OpNeg, OpNot, OpFloor, OpCeil, OpRound, OpRint,
-		OpJump, OpPush, OpPop, OpLoad, OpDefer, OpJoin:
+		OpJump, OpDefer, OpJoin:
 		// TODO: Fix per-unary string (e.g., load differs from neg)
 		return fmt.Sprint(op, i.regOut(), " ", i.argA(), " ", i.argB())
 	// Cond
@@ -72,7 +78,7 @@ func (i Instruction) String() string {
 	case OpCall, OpReturn:
 		return fmt.Sprint(op, i.regOut(), " ", i.argA(), " ", i.argB())
 	default:
-		return "unknown opcode for instruction " + strconv.FormatUint(uint64(i), 16)
+		return "<unknown opcode for instruction " + strconv.FormatUint(uint64(i), 16) + ">"
 	}
 }
 

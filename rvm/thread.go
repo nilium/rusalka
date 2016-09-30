@@ -11,9 +11,8 @@ import (
 type Value interface{}
 
 const (
-	registerCount = 32
-	registerMin   = -2147483648
-	registerMax   = registerMin + registerCount
+	registerCount    = 32
+	specialRegisters = 3
 
 	maxInt = int(^uint(0) >> 1)
 	minInt = -(maxInt - 1)
@@ -34,7 +33,7 @@ type funcData struct {
 	code []Instruction
 	// constants that may be referenced by instructions
 	consts []Value
-	reg    [registerCount]Value
+	reg    [registerCount - specialRegisters]Value
 
 	// NOTE: Consider adding a constant page-shifting instruction to handle constants outside a [0, 2047] range.
 }
@@ -240,16 +239,18 @@ func (i StackIndex) String() string {
 	return "stack[" + strconv.Itoa(int(i)) + "]"
 }
 
-func (i StackIndex) abs(th *Thread) int {
+func (i StackIndex) abs(th *Thread) (absIndex int) {
+	absIndex = int(i)
 	n := len(th.stack)
-	ai := int(i)
-	if ai < 0 {
-		ai = n + ai
+	if absIndex < 0 {
+		absIndex = n + absIndex
+	} else {
+		absIndex = th.ebp + absIndex
 	}
-	if ai < 0 || ai >= n {
+	if absIndex < 0 || absIndex >= n {
 		panic(InvalidStackIndex(i))
 	}
-	return ai
+	return absIndex
 }
 
 func (i StackIndex) Abs(th *Thread) StackIndex {
@@ -265,21 +266,72 @@ func (i StackIndex) store(th *Thread, v Value) {
 }
 
 func (i RegisterIndex) String() string {
-	return "%" + strconv.Itoa(int(i))
+	switch i {
+	case 0:
+		return "%pc"
+	case 1:
+		return "%ebp"
+	case 2:
+		return "%esp"
+	default:
+		return "%" + strconv.Itoa(int(i))
+	}
 }
 
 func (i RegisterIndex) load(th *Thread) Value {
-	if i < 0 || int(i) > len(th.reg) {
-		panic(InvalidRegister(i))
+	switch i {
+	case 0:
+		return vint(th.pc)
+	case 1:
+		return vint(th.ebp)
+	case 2:
+		return vint(len(th.stack) - th.ebp)
+	default:
+		ri := int(i - specialRegisters)
+		if ri < 0 || ri >= len(th.reg) {
+			panic(InvalidRegister(i))
+		}
+		return th.reg[ri]
 	}
-	return th.reg[int(i)]
 }
 
 func (i RegisterIndex) store(th *Thread, v Value) {
-	if i < 0 || int(i) > len(th.reg) {
-		panic(InvalidRegister(i))
+	switch i {
+	case 0:
+		var pc int64
+		switch v := v.(type) {
+		case vint:
+			pc = int64(v)
+		case int64:
+			pc = v
+		case vuint:
+			pc = int64(v)
+		case int32:
+			pc = int64(v)
+		case int:
+			pc = int64(v)
+		case uint:
+			pc = int64(v)
+		case uint32:
+			pc = int64(v)
+		case uint64:
+			pc = int64(v)
+		default:
+			panic(fmt.Errorf("invalid pc type: %T: %v", v, v))
+		}
+		if pc < 0 || pc > int64(len(th.code)) {
+			panic(fmt.Errorf("invalid pc: %d", pc))
+		}
+		th.pc = pc
+	case 1, 2:
+		panic(fmt.Errorf("cannot modify %v", i))
+	default:
+		ri := int(i - specialRegisters)
+		if ri < 0 || ri >= len(th.reg) {
+			panic(InvalidRegister(i))
+		}
+		th.reg[ri] = v
 	}
-	th.reg[int(i)] = v
 }
 
 func (pcIndex) load(th *Thread) Value {
