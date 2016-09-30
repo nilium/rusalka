@@ -30,22 +30,22 @@ var (
 
 type funcData struct {
 	// PC for the function
-	pc int64
+	pc   int64
+	code []Instruction
 	// constants that may be referenced by instructions
 	consts []Value
+	reg    [registerCount]Value
 
 	// NOTE: Consider adding a constant page-shifting instruction to handle constants outside a [0, 2047] range.
 }
 
 type stackFrame struct {
-	returnTo int64 // continuation PC
-	ebp      int   // starting ebp of this frame
+	ebp int // starting ebp of this frame
 	funcData
 }
 
 type Thread struct {
-	pc     int64
-	reg    [registerCount]Value
+	stackFrame
 	stack  []Value
 	frames []stackFrame
 }
@@ -62,14 +62,28 @@ func NewThread() *Thread {
 	return th
 }
 
+// pushFrame pushes a new stack frame. This implicitly copies all registers for the new fn. ebpOffset may be <= 0; if
+// less than 0, it can be used to mark a chunk from the top of the stack as belonging to the next frame.
 func (th *Thread) pushFrame(ebpOffset int, fn funcData) {
-	th.frames = append(th.frames, stackFrame{
-		returnTo: th.pc,
+	if ebpOffset > 0 {
+		panic(InvalidStackIndex(len(th.stack) + ebpOffset))
+	} else if th.ebp-ebpOffset > len(th.stack)+ebpOffset {
+		panic(ErrUnderflow)
+	}
+	th.frames = append(th.frames, th.stackFrame)
+
+	// Copy registers (may be used for argument passing)
+	fn.reg = th.reg
+	th.stackFrame = stackFrame{
 		ebp:      len(th.stack) + ebpOffset,
 		funcData: fn,
-	})
-	// jump to call point
-	th.pc = fn.pc
+	}
+}
+
+func (th *Thread) replaceFrame(keep int, fn funcData) {
+	th.copyAndResizeStack(th.ebp, keep)
+	fn.reg = th.reg
+	th.funcData = fn
 }
 
 func (th *Thread) popFrame(keep int) {
@@ -79,13 +93,48 @@ func (th *Thread) popFrame(keep int) {
 	}
 
 	frame := &th.frames[top]
-	th.pc, th.frames = frame.returnTo, th.frames[:top]
-	if len(th.stack)-keep > frame.ebp {
+	th.frames = th.frames[:top]
+	th.copyAndResizeStack(th.ebp, keep)
+
+	th.stackFrame = *frame
+	*frame = stackFrame{}
+}
+
+// copyAndResizeStack resizes the stack to `newTop` plus `keep` elements from the top of the stack. The new stack top
+// and the elements to keep may not overlap.
+func (th *Thread) copyAndResizeStack(newTop, keep int) {
+	if keep < 0 {
 		panic(ErrUnderflow)
 	}
-	copy(th.stack[frame.ebp:], th.stack[len(th.stack)-keep:])
-	th.shrinkStack(frame.ebp + keep)
-	*frame = stackFrame{}
+
+	if newTop < 0 {
+		panic(ErrUnderflow)
+	} else if newTop+keep == len(th.stack) {
+		return
+	}
+
+	// Take `keep` values off the top of the stack and move them down to the start.
+	// We want to be able to use the stack to transfer values from a child frame to a parent frame, such as multiple
+	// return values or other data that might be useful to a tailcall.
+	if keep > 0 {
+		oldTop := len(th.stack) - keep
+		if newTop > oldTop {
+			panic(ErrUnderflow)
+		}
+
+		copy(th.stack[newTop:], th.stack[oldTop:])
+	}
+
+	th.resizeStack(newTop + keep)
+}
+
+func (th *Thread) Run() {
+	for th.pc < int64(len(th.code)) {
+		pc := th.pc
+		th.pc++
+		instr := th.code[pc]
+		instr.execer()(instr, th)
+	}
 }
 
 func (th *Thread) Push(v Value) {
@@ -98,7 +147,7 @@ func (th *Thread) Pop() (v Value) {
 		panic(ErrUnderflow)
 	}
 	v = th.stack[top]
-	th.shrinkStack(top)
+	th.resizeStack(top)
 	return v
 }
 
@@ -109,7 +158,29 @@ func (th *Thread) At(i Index) Value {
 	return i.load(th)
 }
 
-func (th *Thread) shrinkStack(top int) {
+// growStack grows the stack's capacity by at least elems entries. This does not resize the stack.
+func (th *Thread) growStack(elems int) {
+	var (
+		pred = th.stack
+		slen = len(pred)
+		next = slen + elems
+	)
+	if next <= cap(th.stack) {
+		return
+	}
+
+	dup := make([]Value, len(pred), next)
+	copy(dup, th.stack)
+	th.stack = dup
+
+	for i := range pred {
+		pred[i] = nil
+	}
+}
+
+// resizeStack resizes the stack to the new top. If top is equal to or exceeds the current stack length, the call is
+// a no-op.
+func (th *Thread) resizeStack(top int) {
 	curLen := len(th.stack)
 	if curLen <= top {
 		return
@@ -158,7 +229,7 @@ func (i constIndex) String() string {
 }
 
 func (i constIndex) load(th *Thread) Value {
-	return th.frames[len(th.frames)-1].consts[int(i)]
+	return th.consts[int(i)]
 }
 
 func (constIndex) store(*Thread, Value) {
