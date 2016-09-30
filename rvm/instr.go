@@ -45,11 +45,11 @@ func (i Instruction) argB() Index {
 	flags := i.flags()
 	switch {
 	case flags&opBinArgBConst != 0:
-		return constIndex(uint16(i>>18) & 0x7FF)
+		return constIndex((i >> 18) & 0x7FF)
 	case flags&opBinArgBStack != 0:
 		return StackIndex(int32(i<<3) >> 21)
 	}
-	return RegisterIndex(uint16(i>>18) & 0x1F)
+	return RegisterIndex((i >> 18) & 0x1F)
 }
 
 func (i Instruction) flags() uint32 {
