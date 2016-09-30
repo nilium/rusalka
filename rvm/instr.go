@@ -42,8 +42,7 @@ func (i Instruction) argAX() int {
 }
 
 func (i Instruction) argB() Index {
-	flags := i.flags()
-	switch {
+	switch flags := i.flags(); {
 	case flags&opBinArgBConst != 0:
 		return constIndex((i >> 18) & 0x7FF)
 	case flags&opBinArgBStack != 0:
