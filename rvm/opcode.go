@@ -160,27 +160,94 @@ var opFuncTable = [...]opFunc{
 	},
 
 	OpNot: func(instr Instruction, vm *Thread) {
-		panic("unimplemented")
+		var (
+			out  = instr.regOut()
+			recv = tobitwise(instr.argA().load(vm))
+		)
+		out.store(vm, recv.Not())
 	},
 
 	OpOr: func(instr Instruction, vm *Thread) {
-		panic("unimplemented")
+		var (
+			out = instr.regOut()
+			lhs = tobitwise(instr.argA().load(vm))
+			rhs = tobitwise(instr.argB().load(vm))
+		)
+		out.store(vm, lhs.Or(rhs))
 	},
 
 	OpAnd: func(instr Instruction, vm *Thread) {
-		panic("unimplemented")
+		var (
+			out = instr.regOut()
+			lhs = tobitwise(instr.argA().load(vm))
+			rhs = tobitwise(instr.argB().load(vm))
+		)
+		out.store(vm, lhs.And(rhs))
 	},
 
 	OpXor: func(instr Instruction, vm *Thread) {
-		panic("unimplemented")
+		var (
+			out = instr.regOut()
+			lhs = tobitwise(instr.argA().load(vm))
+			rhs = tobitwise(instr.argB().load(vm))
+		)
+		out.store(vm, lhs.Xor(rhs))
 	},
 
 	OpArithshift: func(instr Instruction, vm *Thread) {
-		panic("unimplemented")
+		var (
+			out    = instr.regOut()
+			lhs    = tobitwise(instr.argA().load(vm))
+			lhsi   = int64(tovuint(lhs))
+			rhs    = tovint(instr.argB().load(vm))
+			result = lhsi
+		)
+
+		if rhs < 0 {
+			result = lhsi << uint(-rhs)
+		} else if rhs > 0 {
+			result = lhsi >> uint(rhs)
+		}
+
+		var final Value
+		switch lhs.(type) {
+		case vint:
+			final = vint(result)
+		case vuint:
+			final = vuint(result)
+		default:
+			panic("unreachable")
+		}
+
+		out.store(vm, final)
 	},
 
 	OpBitshift: func(instr Instruction, vm *Thread) {
-		panic("unimplemented")
+		var (
+			out    = instr.regOut()
+			lhs    = tobitwise(instr.argA().load(vm))
+			lhsu   = uint64(tovuint(lhs))
+			rhs    = tovint(instr.argB().load(vm))
+			result = lhsu
+		)
+
+		if rhs < 0 {
+			result = lhsu << uint(-rhs)
+		} else if rhs > 0 {
+			result = lhsu >> uint(rhs)
+		}
+
+		var final Value
+		switch lhs.(type) {
+		case vint:
+			final = vint(result)
+		case vuint:
+			final = vuint(result)
+		default:
+			panic("unreachable")
+		}
+
+		out.store(vm, final)
 	},
 
 	OpFloor: func(instr Instruction, vm *Thread) {
