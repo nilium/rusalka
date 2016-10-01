@@ -33,8 +33,89 @@ func TestOpAdd(t *testing.T) {
 	th.Push(-123.45) // 2 -2
 	th.Push(1)       // 3 -1
 
+	testRunThread(t, th)
+	testThreadState(t, th, []threadStateTest{
+		{RegisterIndex(4), vnum(26.6)},
+	})
+}
+
+func TestOpBitwiseShift(t *testing.T) {
+	th := NewThread()
+
+	fn := funcData{
+		code: []Instruction{
+			// r[3], r[6] = 1003, -1003
+			mkBinaryInstr(OpLoad, RegisterIndex(3), nil, constIndex(0)),
+			mkBinaryInstr(OpLoad, RegisterIndex(6), nil, constIndex(1)),
+			mkBinaryInstr(OpBitshift, RegisterIndex(4), RegisterIndex(3), constIndex(2)),
+			mkBinaryInstr(OpBitshift, RegisterIndex(5), RegisterIndex(3), constIndex(3)),
+			mkBinaryInstr(OpBitshift, RegisterIndex(7), RegisterIndex(6), constIndex(2)),
+			mkBinaryInstr(OpBitshift, RegisterIndex(8), RegisterIndex(6), constIndex(3)),
+		},
+		consts: []Value{vuint(1003), vnum(-1003), vnum(4), vnum(-4)},
+	}
+
+	th.pushFrame(0, fn)
+	th.Push(4)
+	th.Push(-4)
+
+	testRunThread(t, th)
+	testThreadState(t, th, []threadStateTest{
+		{RegisterIndex(4), vuint(62)},
+		{RegisterIndex(5), vuint(16048)},
+		{RegisterIndex(7), vint(1152921504606846913)},
+		{RegisterIndex(8), vint(-16048)},
+	})
+}
+
+func TestOpArithShift(t *testing.T) {
+	th := NewThread()
+
+	fn := funcData{
+		code: []Instruction{
+			// r[3], r[6] = 1003, -1003
+			mkBinaryInstr(OpLoad, RegisterIndex(3), nil, constIndex(0)),
+			mkBinaryInstr(OpLoad, RegisterIndex(6), nil, constIndex(1)),
+			mkBinaryInstr(OpArithshift, RegisterIndex(4), RegisterIndex(3), constIndex(2)),
+			mkBinaryInstr(OpArithshift, RegisterIndex(5), RegisterIndex(3), constIndex(3)),
+			mkBinaryInstr(OpArithshift, RegisterIndex(7), RegisterIndex(6), constIndex(2)),
+			mkBinaryInstr(OpArithshift, RegisterIndex(8), RegisterIndex(6), constIndex(3)),
+		},
+		// Test with float64 for negative side just to ensure conversion works
+		consts: []Value{vuint(1003), vnum(-1003), vnum(4), vnum(-4)},
+	}
+
+	th.pushFrame(0, fn)
+	th.Push(4)
+	th.Push(-4)
+
+	testRunThread(t, th)
+	testThreadState(t, th, []threadStateTest{
+		{RegisterIndex(4), vuint(62)},
+		{RegisterIndex(5), vuint(16048)},
+		{RegisterIndex(7), vint(-63)},
+		{RegisterIndex(8), vint(-16048)},
+	})
+}
+
+type threadStateTest struct {
+	index Index
+	want  Value
+}
+
+func testThreadState(t *testing.T, th *Thread, tests []threadStateTest) {
+	for i, test := range tests {
+		if got := th.At(test.index); got != test.want {
+			t.Errorf("(%d) th.At(%v) = %v (%T); want %#v (%T)", i+1, test.index, got, got, test.want, test.want)
+		} else {
+			t.Logf("(%d) th.At(%v) = %v (%T)", i+1, test.index, got, got)
+		}
+	}
+}
+
+func testRunThread(t *testing.T, th *Thread) {
 	t.Log("Code:")
-	for pc, instr := range fn.code {
+	for pc, instr := range th.code {
 		t.Logf("%2d %v", pc, instr)
 	}
 
@@ -49,11 +130,4 @@ func TestOpAdd(t *testing.T) {
 	for i, e := range th.stack {
 		t.Logf("%2d %#+v", i, e)
 	}
-
-	want := vnum(26.6)
-	if got := th.At(RegisterIndex(4)); got != want {
-		t.Fatalf("th.At(RegisterIndex(0)) = %#v; want %#v", got, want)
-	}
-
-	th.popFrame(0)
 }
