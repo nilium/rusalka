@@ -1,0 +1,6 @@
+language: go
+
+go_import_path: go.spiff.io/rusalka
+go:
+  - 1.7.1
+  - tip
