@@ -59,6 +59,10 @@ type (
 	IntValuer interface {
 		Int64() int64
 	}
+
+	UintValuer interface {
+		Uint64() uint64
+	}
 )
 
 var (
@@ -71,6 +75,7 @@ var (
 
 func (lhs vnum) Float64() float64    { return float64(lhs) }
 func (lhs vnum) Int64() int64        { return int64(lhs) }
+func (lhs vnum) Uint64() uint64      { return uint64(lhs) }
 func (lhs vnum) Add(rhs Arith) Arith { return lhs + tovnum(rhs) }
 func (lhs vnum) Mul(rhs Arith) Arith { return lhs * tovnum(rhs) }
 func (lhs vnum) Div(rhs Arith) Arith { return lhs / tovnum(rhs) }
@@ -89,6 +94,7 @@ func (lhs vnum) Mod(rhs Arith) Arith {
 
 func (lhs vint) Float64() float64 { return float64(lhs) }
 func (lhs vint) Int64() int64     { return int64(lhs) }
+func (lhs vint) Uint64() uint64   { return uint64(lhs) }
 func (lhs vint) Neg() Arith       { return -lhs }
 
 func (lhs vint) Add(rhs Arith) Arith {
@@ -167,10 +173,16 @@ func (lhs vint) Pow(rhs Arith) Arith {
 	panic("unreachable")
 }
 
+func (lhs vint) Xor(rhs Bitwise) Bitwise { return vint(uint64(lhs) ^ uint64(tovuint(rhs))) }
+func (lhs vint) And(rhs Bitwise) Bitwise { return vint(uint64(lhs) & uint64(tovuint(rhs))) }
+func (lhs vint) Or(rhs Bitwise) Bitwise  { return vint(uint64(lhs) | uint64(tovuint(rhs))) }
+func (lhs vint) Not() Bitwise            { return vint(^uint64(lhs)) }
+
 // Unsigned integer
 
 func (lhs vuint) Float64() float64 { return float64(lhs) }
 func (lhs vuint) Int64() int64     { return int64(lhs) }
+func (lhs vuint) Uint64() uint64   { return uint64(lhs) }
 func (lhs vuint) Neg() Arith       { return -lhs }
 
 func (lhs vuint) Add(rhs Arith) Arith {
@@ -249,19 +261,21 @@ func (lhs vuint) Pow(rhs Arith) Arith {
 	panic("unreachable")
 }
 
+func (lhs vuint) Xor(rhs Bitwise) Bitwise { return lhs ^ tovuint(rhs) }
+func (lhs vuint) And(rhs Bitwise) Bitwise { return lhs & tovuint(rhs) }
+func (lhs vuint) Or(rhs Bitwise) Bitwise  { return lhs | tovuint(rhs) }
+func (lhs vuint) Not() Bitwise            { return ^lhs }
+
 func toarith(v Value) (r Arith) {
 	switch v := v.(type) {
-	case vnum:
-		f := float64(v)
-		return vnum(f)
-	case vint:
-		return v
-	case vuint:
+	case Arith:
 		return v
 	case FloatValuer:
 		return vnum(v.Float64())
 	case IntValuer:
 		return vint(v.Int64())
+	case UintValuer:
+		return vuint(v.Uint64())
 	case int:
 		return vint(v)
 	case int64:
@@ -285,7 +299,42 @@ func toarith(v Value) (r Arith) {
 	case uint8:
 		return vuint(v)
 	default:
-		panic(fmt.Errorf("unable to convert %T to float64", v))
+		panic(fmt.Errorf("unable to convert %T to arithmetic type", v))
+	}
+}
+
+func tobitwise(v Value) (r Bitwise) {
+	switch v := v.(type) {
+	case Bitwise:
+		return v
+	case IntValuer:
+		return vint(v.Int64())
+	case UintValuer:
+		return vuint(v.Uint64())
+	case float64:
+		return vint(v)
+	case float32:
+		return vint(v)
+	case int:
+		return vint(v)
+	case int64:
+		return vint(v)
+	case int32:
+		return vint(v)
+	case int16:
+		return vint(v)
+	case uint:
+		return vuint(v)
+	case uint64:
+		return vuint(v)
+	case uint32:
+		return vuint(v)
+	case uint16:
+		return vuint(v)
+	case uint8:
+		return vuint(v)
+	default:
+		panic(fmt.Errorf("unable to convert %T to bitwise type", v))
 	}
 }
 
