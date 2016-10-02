@@ -5,7 +5,7 @@ import (
 	"math"
 )
 
-type roundingMode int
+type roundingMode uint
 
 const (
 	rndTrunc roundingMode = iota

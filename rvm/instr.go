@@ -81,8 +81,7 @@ func (i Instruction) String() string {
 		return fmt.Sprint(op, i.regOut())
 	case OpPush:
 		return fmt.Sprint(op, i.argB())
-	case OpNeg, OpNot, OpFloor, OpCeil, OpRound, OpRint,
-		OpJump, OpDefer, OpJoin:
+	case OpNeg, OpNot, OpRound, OpJump, OpDefer, OpJoin:
 		// TODO: Fix per-unary string (e.g., load differs from neg)
 		return fmt.Sprint(op, i.regOut(), i.argA(), i.argB())
 	// Cond

@@ -32,10 +32,7 @@ const (
 	OpXor
 	OpArithshift
 	OpBitshift
-	OpFloor
-	OpCeil
 	OpRound
-	OpRint
 	OpEq
 	OpLe
 	OpLt
@@ -66,10 +63,7 @@ var opNames = [...]string{
 	OpXor:        `xor`,
 	OpArithshift: `ashift`,
 	OpBitshift:   `bshift`,
-	OpFloor:      `floor`,
-	OpCeil:       `ceil`,
 	OpRound:      `round`,
-	OpRint:       `rint`,
 	OpEq:         `eq`,
 	OpLe:         `le`,
 	OpLt:         `lt`,
@@ -243,46 +237,15 @@ var opFuncTable = [...]opFunc{
 		out.store(vm, final)
 	},
 
-	OpFloor: func(instr Instruction, vm *Thread) {
-		var (
-			out = instr.regOut()
-			val = toarith(instr.argA().load(vm))
-		)
-		if f, ok := val.(vnum); ok {
-			val = vnum(round(float64(f), rndCeil))
-		}
-		out.store(vm, val)
-	},
-
-	OpCeil: func(instr Instruction, vm *Thread) {
-		var (
-			out = instr.regOut()
-			val = toarith(instr.argA().load(vm))
-		)
-		if f, ok := val.(vnum); ok {
-			val = vnum(round(float64(f), rndFloor))
-		}
-		out.store(vm, val)
-	},
-
 	OpRound: func(instr Instruction, vm *Thread) {
 		var (
-			out = instr.regOut()
-			val = toarith(instr.argA().load(vm))
+			out  = instr.regOut()
+			mode = roundingMode(instr.argAU())
+			val  = toarith(instr.argA().load(vm))
 		)
+		// Only apply rounding if the input was a float to begin with.
 		if f, ok := val.(vnum); ok {
-			val = vnum(round(float64(f), rndNearest))
-		}
-		out.store(vm, val)
-	},
-
-	OpRint: func(instr Instruction, vm *Thread) {
-		var (
-			out = instr.regOut()
-			val = toarith(instr.argA().load(vm))
-		)
-		if f, ok := val.(vnum); ok {
-			val = vnum(round(float64(f), rndTrunc))
+			val = vnum(round(float64(f), mode))
 		}
 		out.store(vm, val)
 	},
