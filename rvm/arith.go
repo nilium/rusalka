@@ -94,6 +94,7 @@ type (
 
 	Arith interface {
 		Add(Arith) Arith
+		Sub(Arith) Arith
 		Neg() Arith
 		Mul(Arith) Arith
 		Div(Arith) Arith
@@ -154,6 +155,7 @@ func (lhs vnum) Float64() float64    { return float64(lhs) }
 func (lhs vnum) Int64() int64        { return int64(lhs) }
 func (lhs vnum) Uint64() uint64      { return uint64(lhs) }
 func (lhs vnum) Add(rhs Arith) Arith { return lhs + tovnum(rhs) }
+func (lhs vnum) Sub(rhs Arith) Arith { return lhs - tovnum(rhs) }
 func (lhs vnum) Mul(rhs Arith) Arith { return lhs * tovnum(rhs) }
 func (lhs vnum) Div(rhs Arith) Arith { return lhs / tovnum(rhs) }
 func (lhs vnum) Neg() Arith          { return -lhs }
@@ -216,6 +218,18 @@ func (lhs vint) Add(rhs Arith) Arith {
 		return vint(int64(lhs) + int64(rhs))
 	case vnum:
 		return vnum(float64(lhs) + float64(rhs))
+	}
+	panic("unreachable")
+}
+
+func (lhs vint) Sub(rhs Arith) Arith {
+	switch rhs := toarith(rhs).(type) {
+	case vint:
+		return vint(int64(lhs) - int64(rhs))
+	case vuint:
+		return vint(int64(lhs) - int64(rhs))
+	case vnum:
+		return vnum(float64(lhs) - float64(rhs))
 	}
 	panic("unreachable")
 }
@@ -324,6 +338,18 @@ func (lhs vuint) Add(rhs Arith) Arith {
 		return vuint(int64(lhs) + int64(rhs))
 	case vnum:
 		return vnum(float64(lhs) + float64(rhs))
+	}
+	panic("unreachable")
+}
+
+func (lhs vuint) Sub(rhs Arith) Arith {
+	switch rhs := toarith(rhs).(type) {
+	case vuint:
+		return vuint(uint64(lhs) - uint64(rhs))
+	case vint:
+		return vuint(int64(lhs) - int64(rhs))
+	case vnum:
+		return vnum(float64(lhs) - float64(rhs))
 	}
 	panic("unreachable")
 }

@@ -96,7 +96,7 @@ var opFuncTable = [...]opFunc{
 			lhs = toarith(instr.argA().load(vm))
 			rhs = toarith(instr.argB().load(vm))
 		)
-		out.store(vm, lhs.Add(rhs.Neg()))
+		out.store(vm, lhs.Sub(rhs))
 	},
 
 	OpDiv: func(instr Instruction, vm *Thread) {
