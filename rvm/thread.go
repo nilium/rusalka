@@ -6,6 +6,19 @@ import (
 	"strconv"
 )
 
+type RuntimePanic struct {
+	Value interface{}
+}
+
+func (r *RuntimePanic) Error() string {
+	return fmt.Sprint("panic: ", r.Value)
+}
+
+func (r *RuntimePanic) Err() error {
+	err, _ := r.Value.(error)
+	return err
+}
+
 // value is a general type for any type that can appear in the stack, registers, or constants table. It is currently the
 // empty interface due to lack of specification around types while at least retaining concrete type information.
 type Value interface{}
@@ -24,7 +37,8 @@ var (
 	ErrStackRange    = errors.New("stack index out of range")
 	ErrUnderflow     = errors.New("stack underflow")
 
-	errConstStore = errors.New("attempt to write to constants table")
+	errConstStore = errors.New("cannot write to constants table")
+	errEBPStore   = errors.New("cannot write to %ebp")
 )
 
 type funcData struct {
@@ -125,13 +139,19 @@ func (th *Thread) copyAndResizeStack(newTop, keep int) {
 	th.resizeStack(newTop + keep)
 }
 
-func (th *Thread) Run() {
+func (th *Thread) Run() (err error) {
+	defer func() {
+		if rc := recover(); rc != nil {
+			err = &RuntimePanic{rc}
+		}
+	}()
 	for th.pc < int64(len(th.code)) {
 		pc := th.pc
 		th.pc++
 		instr := th.code[pc]
 		instr.execer()(instr, th)
 	}
+	return nil
 }
 
 func (th *Thread) Push(v Value) {
@@ -208,6 +228,12 @@ type (
 	InvalidConstIndex int
 )
 
+const (
+	RegPC RegisterIndex = iota
+	RegEBP
+	RegESP
+)
+
 func (i InvalidRegister) Error() string {
 	return fmt.Sprintf("register %d out of range 0..%d", i, registerCount-1)
 }
@@ -225,6 +251,9 @@ func (i constIndex) String() string {
 }
 
 func (i constIndex) load(th *Thread) Value {
+	if i < 0 || int(i) > len(th.consts) {
+		panic(InvalidConstIndex(i))
+	}
 	return th.consts[int(i)]
 }
 
@@ -322,7 +351,7 @@ func (i RegisterIndex) store(th *Thread, v Value) {
 		th.pc = pc
 
 	case 1:
-		panic(fmt.Errorf("cannot modify %v", i))
+		panic(errEBPStore)
 
 	case 2:
 		var (

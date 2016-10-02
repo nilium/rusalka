@@ -126,7 +126,9 @@ func testRunThread(t *testing.T, th *Thread) {
 		t.Logf("%2d %#+v", i, e)
 	}
 
-	th.Run()
+	if err := th.Run(); err != nil {
+		t.Fatalf("th.Run() = %v; want %v", err, nil)
+	}
 
 	t.Log("Stack (after):")
 	for i, e := range th.stack {
