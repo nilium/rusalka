@@ -201,7 +201,6 @@ type (
 		store(th *Thread, v Value)
 	}
 
-	pcIndex       struct{}
 	StackIndex    int
 	RegisterIndex int
 	constIndex    int
@@ -333,44 +332,3 @@ func (i RegisterIndex) store(th *Thread, v Value) {
 		th.reg[ri] = v
 	}
 }
-
-func (pcIndex) load(th *Thread) Value {
-	return th.pc
-}
-
-func (pcIndex) String() string {
-	return "%pc"
-}
-
-func (pcIndex) store(th *Thread, v Value) {
-	var next int64
-	switch i := v.(type) {
-	case int:
-		next = int64(i)
-	case int32:
-		next = int64(i)
-	case int64:
-		next = i
-	case uint32:
-		next = int64(i)
-	case uint64:
-		if i > uint64(maxInt) {
-			panic(ErrPCRange)
-		}
-		next = int64(i)
-	case uint:
-		if uint64(i) > uint64(maxInt) {
-			panic(ErrPCRange)
-		}
-		next = int64(i)
-	default:
-		panic(fmt.Errorf("invalid type for PC: %T, expected %T", v, int(0)))
-	}
-
-	if next < 0 {
-		panic(ErrPCRange)
-	}
-	th.pc = next
-}
-
-var PC pcIndex
