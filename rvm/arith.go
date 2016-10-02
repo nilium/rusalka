@@ -5,6 +5,12 @@ import (
 	"math"
 )
 
+type InvalidRoundingMode roundingMode
+
+func (i InvalidRoundingMode) Error() string {
+	return fmt.Sprintf("invalid rounding mode: %x", i)
+}
+
 type roundingMode uint
 
 const (
@@ -14,19 +20,71 @@ const (
 	rndCeil
 )
 
-func round(x float64, mode roundingMode) float64 {
-	switch mode {
-	case rndTrunc:
-		return math.Trunc(x)
-	case rndNearest:
-		return math.Trunc(x + math.Copysign(0.5, x))
-	case rndFloor:
-		return math.Floor(x)
-	case rndCeil:
-		return math.Ceil(x)
+func arithShift(v, bits Value) Value {
+	var (
+		ov  = v
+		try bool
+	)
+loop:
+	switch vx := v.(type) {
+	case vuint:
+		return vx.ArithShift(bits)
+	case vint:
+		return vx.ArithShift(bits)
+	case ArithmeticShifter:
+		return vx.ArithShift(bits)
+	default:
+		if try {
+			panic(fmt.Errorf("invalid type for arithmetic shift: %T", ov))
+		}
+		try = true
+		v = tobitwise(v)
+		goto loop
 	}
-	// Invalid result:
-	return math.Copysign(math.NaN(), x)
+}
+
+func bitwiseShift(v, bits Value) Value {
+	var (
+		ov  = v
+		try bool
+	)
+loop:
+	switch vx := v.(type) {
+	case vuint:
+		return vx.BitShift(bits)
+	case vint:
+		return vx.BitShift(bits)
+	case BitShifter:
+		return vx.BitShift(bits)
+	default:
+		if try {
+			panic(fmt.Errorf("invalid type for bitwise shift: %T", ov))
+		}
+		try = true
+		v = tobitwise(v)
+		goto loop
+	}
+}
+
+func round(v Value, mode roundingMode) Value {
+	if mode > rndCeil {
+		panic("invalid rounding mode")
+	}
+
+loop:
+	switch vx := v.(type) {
+	case vuint, vint:
+		return vx
+	case vnum:
+		return vx.Round(mode)
+	case Rounder:
+		return vx.Round(mode)
+	case float64:
+		return vnum(vx).Round(mode)
+	default:
+		v = toarith(vx)
+		goto loop
+	}
 }
 
 type (
@@ -52,6 +110,18 @@ type (
 		Not() Bitwise
 	}
 
+	ArithmeticShifter interface {
+		ArithShift(bits Value) Value
+	}
+
+	BitShifter interface {
+		BitShift(bits Value) Value
+	}
+
+	Rounder interface {
+		Round(roundingMode) Value
+	}
+
 	FloatValuer interface {
 		Float64() float64
 	}
@@ -69,6 +139,13 @@ var (
 	_ Arith = vnum(0)
 	_ Arith = vint(0)
 	_ Arith = vuint(0)
+
+	_ Bitwise = vint(0)
+	_ Bitwise = vuint(0)
+
+	_ Rounder = vnum(0)
+	_ Rounder = vint(0)
+	_ Rounder = vuint(0)
 )
 
 // Float64
@@ -81,6 +158,20 @@ func (lhs vnum) Mul(rhs Arith) Arith { return lhs * tovnum(rhs) }
 func (lhs vnum) Div(rhs Arith) Arith { return lhs / tovnum(rhs) }
 func (lhs vnum) Neg() Arith          { return -lhs }
 func (lhs vnum) Sqrt() Arith         { return vnum(math.Sqrt(float64(lhs))) }
+
+func (lhs vnum) Round(mode roundingMode) Value {
+	switch x := float64(lhs); mode {
+	case rndTrunc:
+		return math.Trunc(x)
+	case rndNearest:
+		return math.Trunc(x + math.Copysign(0.5, x))
+	case rndFloor:
+		return math.Floor(x)
+	case rndCeil:
+		return math.Ceil(x)
+	}
+	panic("unreachable")
+}
 
 func (lhs vnum) Pow(rhs Arith) Arith {
 	return vnum(math.Pow(float64(lhs), float64(tovnum(rhs))))
@@ -96,6 +187,26 @@ func (lhs vint) Float64() float64 { return float64(lhs) }
 func (lhs vint) Int64() int64     { return int64(lhs) }
 func (lhs vint) Uint64() uint64   { return uint64(lhs) }
 func (lhs vint) Neg() Arith       { return -lhs }
+
+func (lhs vint) Round(roundingMode) Value { return lhs }
+
+func (lhs vint) ArithShift(bits Value) Value {
+	if bits := tovint(bits); bits < 0 {
+		return lhs << uint(-bits)
+	} else if bits > 0 {
+		return lhs >> uint(bits)
+	}
+	return lhs
+}
+
+func (lhs vint) BitShift(bits Value) Value {
+	if bits := tovint(bits); bits < 0 {
+		return vint(uint64(lhs) << uint(-bits))
+	} else if bits > 0 {
+		return vint(uint64(lhs) >> uint(bits))
+	}
+	return lhs
+}
 
 func (lhs vint) Add(rhs Arith) Arith {
 	switch rhs := toarith(rhs).(type) {
@@ -184,6 +295,26 @@ func (lhs vuint) Float64() float64 { return float64(lhs) }
 func (lhs vuint) Int64() int64     { return int64(lhs) }
 func (lhs vuint) Uint64() uint64   { return uint64(lhs) }
 func (lhs vuint) Neg() Arith       { return -lhs }
+
+func (lhs vuint) Round(roundingMode) Value { return lhs }
+
+func (lhs vuint) ArithShift(bits Value) Value {
+	if bits := tovint(bits); bits < 0 {
+		return vuint(int64(lhs) << uint(-bits))
+	} else if bits > 0 {
+		return vuint(int64(lhs) >> uint(bits))
+	}
+	return lhs
+}
+
+func (lhs vuint) BitShift(bits Value) Value {
+	if bits := tovint(bits); bits < 0 {
+		return lhs << uint(-bits)
+	} else if bits > 0 {
+		return lhs >> uint(bits)
+	}
+	return lhs
+}
 
 func (lhs vuint) Add(rhs Arith) Arith {
 	switch rhs := toarith(rhs).(type) {

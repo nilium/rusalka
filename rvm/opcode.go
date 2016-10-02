@@ -183,70 +183,30 @@ var opFuncTable = [...]opFunc{
 
 	OpArithshift: func(instr Instruction, vm *Thread) {
 		var (
-			out    = instr.regOut()
-			lhs    = tobitwise(instr.argA().load(vm))
-			lhsi   = int64(tovuint(lhs))
-			rhs    = tovint(instr.argB().load(vm))
-			result = lhsi
+			out = instr.regOut()
+			lhs = instr.argA().load(vm)
+			rhs = instr.argB().load(vm)
 		)
 
-		if rhs < 0 {
-			result = lhsi << uint(-rhs)
-		} else if rhs > 0 {
-			result = lhsi >> uint(rhs)
-		}
-
-		var final Value
-		switch lhs.(type) {
-		case vint:
-			final = vint(result)
-		case vuint:
-			final = vuint(result)
-		default:
-			panic("unreachable")
-		}
-
-		out.store(vm, final)
+		out.store(vm, arithShift(lhs, rhs))
 	},
 
 	OpBitshift: func(instr Instruction, vm *Thread) {
 		var (
-			out    = instr.regOut()
-			lhs    = tobitwise(instr.argA().load(vm))
-			lhsu   = uint64(tovuint(lhs))
-			rhs    = tovint(instr.argB().load(vm))
-			result = lhsu
+			out = instr.regOut()
+			lhs = instr.argA().load(vm)
+			rhs = instr.argB().load(vm)
 		)
 
-		if rhs < 0 {
-			result = lhsu << uint(-rhs)
-		} else if rhs > 0 {
-			result = lhsu >> uint(rhs)
-		}
-
-		var final Value
-		switch lhs.(type) {
-		case vint:
-			final = vint(result)
-		case vuint:
-			final = vuint(result)
-		default:
-			panic("unreachable")
-		}
-
-		out.store(vm, final)
+		out.store(vm, bitwiseShift(lhs, rhs))
 	},
 
 	OpRound: func(instr Instruction, vm *Thread) {
 		var (
 			out  = instr.regOut()
 			mode = roundingMode(instr.argAU())
-			val  = toarith(instr.argA().load(vm))
+			val  = round(instr.argA().load(vm), mode)
 		)
-		// Only apply rounding if the input was a float to begin with.
-		if f, ok := val.(vnum); ok {
-			val = vnum(round(float64(f), mode))
-		}
 		out.store(vm, val)
 	},
 
