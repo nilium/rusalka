@@ -33,21 +33,21 @@ const (
 	OpArithshift
 	OpBitshift
 	OpRound
-	OpEq
-	OpLe
-	OpLt
+	OpTest
 	OpJump
 	OpPush
 	OpPop
-	OpGrow
-	OpShrink
+	OpReserve
 	OpLoad
 	OpCall
 	OpReturn
 	OpDefer
 	OpFork
 	OpJoin
+	opCount
 )
+
+const OpExtended Opcode = 0x3F
 
 var opNames = [...]string{
 	OpAdd:        `add`,
@@ -64,14 +64,11 @@ var opNames = [...]string{
 	OpArithshift: `ashift`,
 	OpBitshift:   `bshift`,
 	OpRound:      `round`,
-	OpEq:         `eq`,
-	OpLe:         `le`,
-	OpLt:         `lt`,
+	OpTest:       `test`,
 	OpJump:       `jump`,
 	OpPush:       `push`,
 	OpPop:        `pop`,
-	OpGrow:       `grow`,
-	OpShrink:     `shrink`,
+	OpReserve:    `reserve`,
 	OpLoad:       `load`,
 	OpCall:       `call`,
 	OpReturn:     `return`,
@@ -210,15 +207,7 @@ var opFuncTable = [...]opFunc{
 		out.store(vm, val)
 	},
 
-	OpEq: func(instr Instruction, vm *Thread) {
-		panic("unimplemented")
-	},
-
-	OpLe: func(instr Instruction, vm *Thread) {
-		panic("unimplemented")
-	},
-
-	OpLt: func(instr Instruction, vm *Thread) {
+	OpTest: func(instr Instruction, vm *Thread) {
 		panic("unimplemented")
 	},
 
@@ -236,27 +225,9 @@ var opFuncTable = [...]opFunc{
 		instr.regOut().store(vm, vm.Pop())
 	},
 
-	OpGrow: func(instr Instruction, vm *Thread) {
+	OpReserve: func(instr Instruction, vm *Thread) {
 		sz := int(tovint(instr.argB().load(vm)))
 		vm.growStack(sz)
-	},
-
-	OpShrink: func(instr Instruction, vm *Thread) {
-		var (
-			sz  = int(tovint(instr.argB().load(vm)))
-			ebp = vm.ebp
-			nsz int
-		)
-		if sz < 0 {
-			nsz = len(vm.stack) + sz
-		} else {
-			nsz = ebp + sz
-		}
-
-		if nsz < ebp {
-			panic(ErrUnderflow)
-		}
-		vm.resizeStack(nsz)
 	},
 
 	// load out - {reg|const|stack}

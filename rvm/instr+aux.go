@@ -2,37 +2,34 @@ package rvm
 
 import "fmt"
 
-func mkBinaryInstr(op Opcode, out RegisterIndex, argA, argB Index) Instruction {
-	var instr uint32 = uint32(op&0x7F) |
-		uint32(out&0x1F)<<8
+func mkBinaryInstr(op Opcode, out, argA RegisterIndex, argB Index) Instruction {
+	var instr uint32 = uint32(op&0x1F) |
+		uint32(out)&0xFF<<5 |
+		uint32(argA)&0xFF<<13
 
-	switch argA := argA.(type) {
-	case nil:
-	case StackIndex:
-		if argA < -16 || argA > 15 {
-			panic(InvalidStackIndex(argA))
-		}
-		instr |= (uint32(int32(argA)<<27)&0xF8000000)>>14 | opBinArgAStack
-	case RegisterIndex:
-		instr |= (uint32(argA) & 0x1F) << 13
-	default:
-		panic(fmt.Errorf("invalid index type %T; must be register or stack", argB))
+	if out < 0 || out >= registerCount {
+		panic(InvalidRegister(out))
+	} else if argA < 0 || argA >= registerCount {
+		panic(InvalidRegister(argA))
 	}
 
 	switch argB := argB.(type) {
 	case nil:
 	case StackIndex:
-		if argB < -1024 || argB > 1023 {
+		if argB < -512 || argB > 511 {
 			panic(InvalidStackIndex(argB))
 		}
-		instr |= (uint32(int32(argB)<<21)&0xFFE00000)>>3 | opBinArgBStack
+		instr |= uint32(int32(argB)<<23)>>1 | opBinArgBStack
 	case RegisterIndex:
-		instr |= uint32(argB&0x1F) << 18
+		if argB < 0 || argB >= registerCount {
+			panic(InvalidRegister(argB))
+		}
+		instr |= uint32(argB&0xFF) << 22
 	case constIndex:
-		if argB < 0 || (argB & ^0x7FF) != 0 {
+		if argB < 0 || argB > 1023 {
 			panic(InvalidConstIndex(argB))
 		}
-		instr |= uint32(argB&0x7FF)<<18 | opBinArgBConst
+		instr |= (uint32(argB&0x3FF))<<22 | opBinArgBConst
 	default:
 		panic(fmt.Errorf("invalid index type %T; must be register, stack, or const", argB))
 	}

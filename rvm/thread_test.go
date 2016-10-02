@@ -8,21 +8,23 @@ func TestOpAdd(t *testing.T) {
 	fn := funcData{
 		code: []Instruction{
 			// grow 4
-			mkBinaryInstr(OpGrow, 0, nil, constIndex(1)),
-			mkBinaryInstr(OpPush, 0, nil, constIndex(2)),
-			mkBinaryInstr(OpShrink, 0, nil, constIndex(3)),
+			mkBinaryInstr(OpReserve, 0, 0, constIndex(1)),
+			mkBinaryInstr(OpPush, 0, 0, constIndex(2)),
+			mkBinaryInstr(OpAdd, 2, 2, constIndex(3)),
 			// r[3] = 4
-			mkBinaryInstr(OpLoad, RegisterIndex(31), nil, constIndex(1)),
+			mkBinaryInstr(OpLoad, 31, 0, constIndex(1)),
+			// r[3] = 4
+			mkBinaryInstr(OpLoad, 11, 0, StackIndex(-3)),
 			// r[2] = s[-3] + 10.3
-			mkBinaryInstr(OpAdd, RegisterIndex(11), StackIndex(-3), constIndex(2)),
+			mkBinaryInstr(OpAdd, 11, 11, constIndex(2)),
 			// r[2] += s[3]
-			mkBinaryInstr(OpAdd, RegisterIndex(11), RegisterIndex(11), StackIndex(3)),
+			mkBinaryInstr(OpAdd, 11, 11, StackIndex(3)),
 			// r[2] += r[3]
-			mkBinaryInstr(OpAdd, RegisterIndex(11), RegisterIndex(11), RegisterIndex(31)),
+			mkBinaryInstr(OpAdd, 11, 11, RegisterIndex(31)),
 			// r[2] += 10.3
-			mkBinaryInstr(OpAdd, RegisterIndex(11), RegisterIndex(11), constIndex(2)),
+			mkBinaryInstr(OpAdd, 11, 11, constIndex(2)),
 			// r[0] = r[2] - 4
-			mkBinaryInstr(OpSub, RegisterIndex(4), RegisterIndex(11), constIndex(1)),
+			mkBinaryInstr(OpSub, 4, 11, constIndex(1)),
 		},
 		consts: []Value{vnum(0), vnum(4), vnum(10.3), vint(-1)},
 	}
@@ -45,12 +47,12 @@ func TestOpBitwiseShift(t *testing.T) {
 	fn := funcData{
 		code: []Instruction{
 			// r[3], r[6] = 1003, -1003
-			mkBinaryInstr(OpLoad, RegisterIndex(3), nil, constIndex(0)),
-			mkBinaryInstr(OpLoad, RegisterIndex(6), nil, constIndex(1)),
-			mkBinaryInstr(OpBitshift, RegisterIndex(4), RegisterIndex(3), constIndex(2)),
-			mkBinaryInstr(OpBitshift, RegisterIndex(5), RegisterIndex(3), constIndex(3)),
-			mkBinaryInstr(OpBitshift, RegisterIndex(7), RegisterIndex(6), constIndex(2)),
-			mkBinaryInstr(OpBitshift, RegisterIndex(8), RegisterIndex(6), constIndex(3)),
+			mkBinaryInstr(OpLoad, 3, 0, constIndex(0)),
+			mkBinaryInstr(OpLoad, 6, 0, constIndex(1)),
+			mkBinaryInstr(OpBitshift, 4, 3, constIndex(2)),
+			mkBinaryInstr(OpBitshift, 5, 3, constIndex(3)),
+			mkBinaryInstr(OpBitshift, 7, 6, constIndex(2)),
+			mkBinaryInstr(OpBitshift, 8, 6, constIndex(3)),
 		},
 		consts: []Value{vuint(1003), vnum(-1003), vnum(4), vnum(-4)},
 	}
@@ -74,12 +76,12 @@ func TestOpArithShift(t *testing.T) {
 	fn := funcData{
 		code: []Instruction{
 			// r[3], r[6] = 1003, -1003
-			mkBinaryInstr(OpLoad, RegisterIndex(3), nil, constIndex(0)),
-			mkBinaryInstr(OpLoad, RegisterIndex(6), nil, constIndex(1)),
-			mkBinaryInstr(OpArithshift, RegisterIndex(4), RegisterIndex(3), constIndex(2)),
-			mkBinaryInstr(OpArithshift, RegisterIndex(5), RegisterIndex(3), constIndex(3)),
-			mkBinaryInstr(OpArithshift, RegisterIndex(7), RegisterIndex(6), constIndex(2)),
-			mkBinaryInstr(OpArithshift, RegisterIndex(8), RegisterIndex(6), constIndex(3)),
+			mkBinaryInstr(OpLoad, 3, 0, constIndex(0)),
+			mkBinaryInstr(OpLoad, 6, 0, constIndex(1)),
+			mkBinaryInstr(OpArithshift, 4, 3, constIndex(2)),
+			mkBinaryInstr(OpArithshift, 5, 3, constIndex(3)),
+			mkBinaryInstr(OpArithshift, 7, 6, constIndex(2)),
+			mkBinaryInstr(OpArithshift, 8, 6, constIndex(3)),
 		},
 		// Test with float64 for negative side just to ensure conversion works
 		consts: []Value{vuint(1003), vnum(-1003), vnum(4), vnum(-4)},

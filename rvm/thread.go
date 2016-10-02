@@ -11,7 +11,7 @@ import (
 type Value interface{}
 
 const (
-	registerCount    = 32
+	registerCount    = 256
 	specialRegisters = 3
 
 	maxInt = int(^uint(0) >> 1)
@@ -33,7 +33,6 @@ type funcData struct {
 	code []Instruction
 	// constants that may be referenced by instructions
 	consts []Value
-	reg    [registerCount - specialRegisters]Value
 
 	// NOTE: Consider adding a constant page-shifting instruction to handle constants outside a [0, 2047] range.
 }
@@ -47,6 +46,7 @@ type Thread struct {
 	stackFrame
 	stack  []Value
 	frames []stackFrame
+	reg    [registerCount - specialRegisters]Value
 }
 
 // NewThread allocates a new VM thread.
@@ -61,8 +61,8 @@ func NewThread() *Thread {
 	return th
 }
 
-// pushFrame pushes a new stack frame. This implicitly copies all registers for the new fn. ebpOffset may be <= 0; if
-// less than 0, it can be used to mark a chunk from the top of the stack as belonging to the next frame.
+// pushFrame pushes a new stack frame. ebpOffset may be <= 0; if less than 0, it can be used to mark a chunk from the
+// top of the stack as belonging to the next frame.
 func (th *Thread) pushFrame(ebpOffset int, fn funcData) {
 	if ebpOffset > 0 {
 		panic(InvalidStackIndex(len(th.stack) + ebpOffset))
@@ -72,7 +72,6 @@ func (th *Thread) pushFrame(ebpOffset int, fn funcData) {
 	th.frames = append(th.frames, th.stackFrame)
 
 	// Copy registers (may be used for argument passing)
-	fn.reg = th.reg
 	th.stackFrame = stackFrame{
 		ebp:      len(th.stack) + ebpOffset,
 		funcData: fn,
@@ -81,7 +80,6 @@ func (th *Thread) pushFrame(ebpOffset int, fn funcData) {
 
 func (th *Thread) replaceFrame(keep int, fn funcData) {
 	th.copyAndResizeStack(th.ebp, keep)
-	fn.reg = th.reg
 	th.funcData = fn
 }
 
@@ -284,7 +282,7 @@ func (i RegisterIndex) load(th *Thread) Value {
 	case 1:
 		return vint(th.ebp)
 	case 2:
-		return vint(len(th.stack) - th.ebp)
+		return vint(len(th.stack))
 	default:
 		ri := int(i - specialRegisters)
 		if ri < 0 || ri >= len(th.reg) {
@@ -322,8 +320,31 @@ func (i RegisterIndex) store(th *Thread, v Value) {
 			panic(fmt.Errorf("invalid pc: %d", pc))
 		}
 		th.pc = pc
-	case 1, 2:
+
+	case 1:
 		panic(fmt.Errorf("cannot modify %v", i))
+
+	case 2:
+		var (
+			sp  = int(tovint(v))
+			esp = len(th.stack)
+			ebp = th.ebp
+		)
+
+		if sp < ebp {
+			panic(ErrUnderflow)
+		}
+
+		switch {
+		case sp < esp:
+			th.resizeStack(sp)
+		case sp > cap(th.stack):
+			th.growStack(sp - cap(th.stack))
+			fallthrough
+		case sp > esp:
+			th.stack = th.stack[0:sp:cap(th.stack)]
+		}
+
 	default:
 		ri := int(i - specialRegisters)
 		if ri < 0 || ri >= len(th.reg) {

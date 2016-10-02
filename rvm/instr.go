@@ -5,65 +5,51 @@ import (
 	"strconv"
 )
 
+// Binary / basic instruction format:
+// 0:4  5:12  13:20  21  22:31  | MASK     | DESCRIPTION
+// |====|=====|======|===|==============================
+// |    |     |      |   |      |          |
+// |    |     |      |   +------| FFC00000 | ArgB (register(8); const(10); stack(9; +-))
+// |    |     |      +----------| 00200000 | ArgB is constant lookup if set
+// |    |     +-----------------| 001FE000 | ArgA (register(8); may be used as argAX or argAU for flags
+// |    +-----------------------| 00001FE0 | Output register(8)
+// +----------------------------| 0000001F | Opcode (universal; 0x1F reserved for extensions)
+
 type Instruction uint32
 
 const (
-	opBinArgMask   uint32 = 0xE0000000
-	opBinArgBConst uint32 = 0x1 << 29
-	opBinArgBStack uint32 = 0x2 << 29
-	opBinArgAStack uint32 = 0x4 << 29
+	opBinArgBConst uint32 = 0x00200000
+	opBinArgBStack uint32 = 0x80000000
 )
 
 func (i Instruction) Opcode() Opcode {
-	return Opcode(i & 0x7F)
+	return Opcode(i & 0x1F)
 }
 
-// Basic operator instruction
-// 0   7   8   13  18  29   MASK     - DESCRIPTION
-// |   |   |   |   |   |
-// |   |   |   |   |   +--- E0000000 - Flag bits (3): 1 - argB is const; 2 - argB is stack; 3 - argA is stack.
-// |   |   |   |   +------- 1FFC0000 - ArgB operand: register, stack [-1024,1023], constant [0,2047] (11)
-// |   |   |   +----------- 0003E000 - ArgA operand: register, stack [-16,15] (5) (relative stack if flag 3 set)
-// |   |   +--------------- 00001F00 - Output: register [0,31] (5)
-// |   +------------------- 00000080 - Reserved (1)
-// +----------------------- 0000007F - Opcode [0,127] (7)
-//
-// All instructions share the first 8 bits at a minimum, with the 8th bit reserved for signalling that an opcode is part
-// an extended instruction set. How it'll work, in practice, isn't defined yet. Rusalka in C++ had room for user-defined
-// instructions even if it didn't expose anything for working with them. rvm here does not yet have this sort of code
-// built in, but having an extra bit to use may be useful.
-
 func (i Instruction) regOut() RegisterIndex {
-	return RegisterIndex((i >> 8) & 0x1F)
+	return RegisterIndex((i >> 5) & 0xFF)
 }
 
 func (i Instruction) argA() Index {
-	if i.flags()&opBinArgAStack != 0 {
-		return StackIndex(int32(i<<14) >> 27)
-	}
-	return RegisterIndex((i >> 13) & 0x1F)
+	return RegisterIndex((i >> 13) & 0xFF)
 }
 
 func (i Instruction) argAX() int {
-	return int(int32((i << 14)) >> 27)
+	return int(int32(i<<11) >> 24)
 }
 
 func (i Instruction) argAU() uint {
-	return uint(i>>13) & 0x1F
+	return uint(i>>13) & 0xFF
 }
 
 func (i Instruction) argB() Index {
-	switch flags := i.flags(); {
-	case flags&opBinArgBConst != 0:
-		return constIndex((i >> 18) & 0x7FF)
-	case flags&opBinArgBStack != 0:
-		return StackIndex(int32(i<<3) >> 21)
+	ix := uint32(i) >> 22
+	if uint32(i)&opBinArgBConst != 0 {
+		return constIndex(ix)
+	} else if ix&0x200 != 0 {
+		return StackIndex(int32(i<<1) >> 23)
 	}
-	return RegisterIndex((i >> 18) & 0x1F)
-}
-
-func (i Instruction) flags() uint32 {
-	return uint32(i) & opBinArgMask
+	return RegisterIndex(ix & 0xFF)
 }
 
 func (i Instruction) String() string {
@@ -73,7 +59,7 @@ func (i Instruction) String() string {
 		OpOr, OpAnd, OpXor, OpArithshift, OpBitshift:
 		return fmt.Sprint(op, i.regOut(), i.argA(), i.argB())
 		// Unary
-	case OpGrow, OpShrink:
+	case OpReserve:
 		return fmt.Sprint(op, i.argB())
 	case OpLoad:
 		return fmt.Sprint(op, i.regOut(), i.argB())
@@ -85,7 +71,7 @@ func (i Instruction) String() string {
 		// TODO: Fix per-unary string (e.g., load differs from neg)
 		return fmt.Sprint(op, i.regOut(), i.argA(), i.argB())
 	// Cond
-	case OpEq, OpLe, OpLt:
+	case OpTest:
 		return fmt.Sprint(op, i.regOut(), i.argA(), i.argB())
 	// Frame
 	case OpCall, OpReturn:
@@ -96,5 +82,5 @@ func (i Instruction) String() string {
 }
 
 func (i Instruction) execer() opFunc {
-	return opFuncTable[int(i&0x7F)]
+	return opFuncTable[int(i&0x1F)]
 }
