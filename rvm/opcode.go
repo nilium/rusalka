@@ -19,13 +19,6 @@ func (o Opcode) String() string {
 }
 
 const (
-	opBinArgMask   uint32 = 0xE0000000
-	opBinArgBConst uint32 = 0x1 << 29
-	opBinArgBStack uint32 = 0x2 << 29
-	opBinArgAStack uint32 = 0x4 << 29
-)
-
-const (
 	OpAdd Opcode = iota
 	OpSub
 	OpDiv
