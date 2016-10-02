@@ -201,7 +201,7 @@ var opFuncTable = [...]opFunc{
 	OpRound: func(instr Instruction, vm *Thread) {
 		var (
 			out  = instr.regOut()
-			mode = roundingMode(instr.argAU())
+			mode = RoundingMode(instr.argAU())
 			val  = round(instr.argA().load(vm), mode)
 		)
 		out.store(vm, val)
@@ -212,7 +212,7 @@ var opFuncTable = [...]opFunc{
 	},
 
 	OpJump: func(instr Instruction, vm *Thread) {
-		vm.pc += int64(tovint(instr.argB().load(vm)))
+		vm.pc += int64(toint(instr.argB().load(vm)))
 	},
 
 	// push - - {reg|const|stack}
@@ -226,7 +226,7 @@ var opFuncTable = [...]opFunc{
 	},
 
 	OpReserve: func(instr Instruction, vm *Thread) {
-		sz := int(tovint(instr.argB().load(vm)))
+		sz := int(toint(instr.argB().load(vm)))
 		vm.growStack(sz)
 	},
 

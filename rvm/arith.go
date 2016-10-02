@@ -5,82 +5,36 @@ import (
 	"math"
 )
 
-type InvalidRoundingMode roundingMode
+type InvalidRoundingMode RoundingMode
 
 func (i InvalidRoundingMode) Error() string {
 	return fmt.Sprintf("invalid rounding mode: %x", i)
 }
 
-type roundingMode uint
+type RoundingMode uint
 
 const (
-	rndTrunc roundingMode = iota
-	rndNearest
-	rndFloor
-	rndCeil
+	RoundTruncate RoundingMode = iota
+	RoundNearest
+	RoundFloor
+	RoundCeil
 )
 
-func arithShift(v, bits Value) Value {
-	var (
-		ov  = v
-		try bool
-	)
-loop:
-	switch vx := v.(type) {
-	case vuint:
-		return vx.ArithShift(bits)
-	case vint:
-		return vx.ArithShift(bits)
-	case ArithmeticShifter:
-		return vx.ArithShift(bits)
-	default:
-		if try {
-			panic(fmt.Errorf("invalid type for arithmetic shift: %T", ov))
-		}
-		try = true
-		v = tobitwise(v)
-		goto loop
-	}
-}
-
-func bitwiseShift(v, bits Value) Value {
-	var (
-		ov  = v
-		try bool
-	)
-loop:
-	switch vx := v.(type) {
-	case vuint:
-		return vx.BitShift(bits)
-	case vint:
-		return vx.BitShift(bits)
-	case BitShifter:
-		return vx.BitShift(bits)
-	default:
-		if try {
-			panic(fmt.Errorf("invalid type for bitwise shift: %T", ov))
-		}
-		try = true
-		v = tobitwise(v)
-		goto loop
-	}
-}
-
-func round(v Value, mode roundingMode) Value {
-	if mode > rndCeil {
+func round(v Value, mode RoundingMode) Value {
+	if mode > RoundCeil {
 		panic("invalid rounding mode")
 	}
 
 loop:
 	switch vx := v.(type) {
-	case vuint, vint:
+	case Uint, Int:
 		return vx
-	case vnum:
+	case Float:
 		return vx.Round(mode)
 	case Rounder:
 		return vx.Round(mode)
 	case float64:
-		return vnum(vx).Round(mode)
+		return Float(vx).Round(mode)
 	default:
 		v = toarith(vx)
 		goto loop
@@ -88,9 +42,9 @@ loop:
 }
 
 type (
-	vnum  float64
-	vint  int64
-	vuint uint64
+	Float float64
+	Int   int64
+	Uint  uint64
 
 	Arith interface {
 		Add(Arith) Arith
@@ -120,7 +74,7 @@ type (
 	}
 
 	Rounder interface {
-		Round(roundingMode) Value
+		Round(RoundingMode) Value
 	}
 
 	FloatValuer interface {
@@ -137,63 +91,63 @@ type (
 )
 
 var (
-	_ Arith = vnum(0)
-	_ Arith = vint(0)
-	_ Arith = vuint(0)
+	_ Arith = Float(0)
+	_ Arith = Int(0)
+	_ Arith = Uint(0)
 
-	_ Bitwise = vint(0)
-	_ Bitwise = vuint(0)
+	_ Bitwise = Int(0)
+	_ Bitwise = Uint(0)
 
-	_ Rounder = vnum(0)
-	_ Rounder = vint(0)
-	_ Rounder = vuint(0)
+	_ Rounder = Float(0)
+	_ Rounder = Int(0)
+	_ Rounder = Uint(0)
 )
 
 // Float64
 
-func (lhs vnum) Float64() float64    { return float64(lhs) }
-func (lhs vnum) Int64() int64        { return int64(lhs) }
-func (lhs vnum) Uint64() uint64      { return uint64(lhs) }
-func (lhs vnum) Add(rhs Arith) Arith { return lhs + tovnum(rhs) }
-func (lhs vnum) Sub(rhs Arith) Arith { return lhs - tovnum(rhs) }
-func (lhs vnum) Mul(rhs Arith) Arith { return lhs * tovnum(rhs) }
-func (lhs vnum) Div(rhs Arith) Arith { return lhs / tovnum(rhs) }
-func (lhs vnum) Neg() Arith          { return -lhs }
-func (lhs vnum) Sqrt() Arith         { return vnum(math.Sqrt(float64(lhs))) }
+func (lhs Float) Float64() float64    { return float64(lhs) }
+func (lhs Float) Int64() int64        { return int64(lhs) }
+func (lhs Float) Uint64() uint64      { return uint64(lhs) }
+func (lhs Float) Add(rhs Arith) Arith { return lhs + tofloat(rhs) }
+func (lhs Float) Sub(rhs Arith) Arith { return lhs - tofloat(rhs) }
+func (lhs Float) Mul(rhs Arith) Arith { return lhs * tofloat(rhs) }
+func (lhs Float) Div(rhs Arith) Arith { return lhs / tofloat(rhs) }
+func (lhs Float) Neg() Arith          { return -lhs }
+func (lhs Float) Sqrt() Arith         { return Float(math.Sqrt(float64(lhs))) }
 
-func (lhs vnum) Round(mode roundingMode) Value {
+func (lhs Float) Round(mode RoundingMode) Value {
 	switch x := float64(lhs); mode {
-	case rndTrunc:
+	case RoundTruncate:
 		return math.Trunc(x)
-	case rndNearest:
+	case RoundNearest:
 		return math.Trunc(x + math.Copysign(0.5, x))
-	case rndFloor:
+	case RoundFloor:
 		return math.Floor(x)
-	case rndCeil:
+	case RoundCeil:
 		return math.Ceil(x)
 	}
 	panic("unreachable")
 }
 
-func (lhs vnum) Pow(rhs Arith) Arith {
-	return vnum(math.Pow(float64(lhs), float64(tovnum(rhs))))
+func (lhs Float) Pow(rhs Arith) Arith {
+	return Float(math.Pow(float64(lhs), float64(tofloat(rhs))))
 }
 
-func (lhs vnum) Mod(rhs Arith) Arith {
-	return vnum(math.Mod(float64(lhs), float64(tovnum(rhs))))
+func (lhs Float) Mod(rhs Arith) Arith {
+	return Float(math.Mod(float64(lhs), float64(tofloat(rhs))))
 }
 
 // Signed integer
 
-func (lhs vint) Float64() float64 { return float64(lhs) }
-func (lhs vint) Int64() int64     { return int64(lhs) }
-func (lhs vint) Uint64() uint64   { return uint64(lhs) }
-func (lhs vint) Neg() Arith       { return -lhs }
+func (lhs Int) Float64() float64 { return float64(lhs) }
+func (lhs Int) Int64() int64     { return int64(lhs) }
+func (lhs Int) Uint64() uint64   { return uint64(lhs) }
+func (lhs Int) Neg() Arith       { return -lhs }
 
-func (lhs vint) Round(roundingMode) Value { return lhs }
+func (lhs Int) Round(RoundingMode) Value { return lhs }
 
-func (lhs vint) ArithShift(bits Value) Value {
-	if bits := tovint(bits); bits < 0 {
+func (lhs Int) ArithShift(bits Value) Value {
+	if bits := toint(bits); bits < 0 {
 		return lhs << uint(-bits)
 	} else if bits > 0 {
 		return lhs >> uint(bits)
@@ -201,128 +155,128 @@ func (lhs vint) ArithShift(bits Value) Value {
 	return lhs
 }
 
-func (lhs vint) BitShift(bits Value) Value {
-	if bits := tovint(bits); bits < 0 {
-		return vint(uint64(lhs) << uint(-bits))
+func (lhs Int) BitShift(bits Value) Value {
+	if bits := toint(bits); bits < 0 {
+		return Int(uint64(lhs) << uint(-bits))
 	} else if bits > 0 {
-		return vint(uint64(lhs) >> uint(bits))
+		return Int(uint64(lhs) >> uint(bits))
 	}
 	return lhs
 }
 
-func (lhs vint) Add(rhs Arith) Arith {
+func (lhs Int) Add(rhs Arith) Arith {
 	switch rhs := toarith(rhs).(type) {
-	case vint:
-		return vint(int64(lhs) + int64(rhs))
-	case vuint:
-		return vint(int64(lhs) + int64(rhs))
-	case vnum:
-		return vnum(float64(lhs) + float64(rhs))
+	case Int:
+		return Int(int64(lhs) + int64(rhs))
+	case Uint:
+		return Int(int64(lhs) + int64(rhs))
+	case Float:
+		return Float(float64(lhs) + float64(rhs))
 	}
 	panic("unreachable")
 }
 
-func (lhs vint) Sub(rhs Arith) Arith {
+func (lhs Int) Sub(rhs Arith) Arith {
 	switch rhs := toarith(rhs).(type) {
-	case vint:
-		return vint(int64(lhs) - int64(rhs))
-	case vuint:
-		return vint(int64(lhs) - int64(rhs))
-	case vnum:
-		return vnum(float64(lhs) - float64(rhs))
+	case Int:
+		return Int(int64(lhs) - int64(rhs))
+	case Uint:
+		return Int(int64(lhs) - int64(rhs))
+	case Float:
+		return Float(float64(lhs) - float64(rhs))
 	}
 	panic("unreachable")
 }
 
-func (lhs vint) Mul(rhs Arith) Arith {
+func (lhs Int) Mul(rhs Arith) Arith {
 	switch rhs := toarith(rhs).(type) {
-	case vint:
-		return vint(int64(lhs) * int64(rhs))
-	case vuint:
-		return vint(int64(lhs) * int64(rhs))
-	case vnum:
-		return vnum(float64(lhs) * float64(rhs))
+	case Int:
+		return Int(int64(lhs) * int64(rhs))
+	case Uint:
+		return Int(int64(lhs) * int64(rhs))
+	case Float:
+		return Float(float64(lhs) * float64(rhs))
 	}
 	panic("unreachable")
 }
 
-func (lhs vint) Div(rhs Arith) Arith {
+func (lhs Int) Div(rhs Arith) Arith {
 	switch rhs := toarith(rhs).(type) {
-	case vint:
-		return vint(int64(lhs) / int64(rhs))
-	case vuint:
-		return vint(int64(lhs) / int64(rhs))
-	case vnum:
-		return vnum(float64(lhs) / float64(rhs))
+	case Int:
+		return Int(int64(lhs) / int64(rhs))
+	case Uint:
+		return Int(int64(lhs) / int64(rhs))
+	case Float:
+		return Float(float64(lhs) / float64(rhs))
 	}
 	panic("unreachable")
 }
 
-func (lhs vint) Mod(rhs Arith) Arith {
+func (lhs Int) Mod(rhs Arith) Arith {
 	switch rhs := toarith(rhs).(type) {
-	case vint:
-		return vint(int64(lhs) % int64(rhs))
-	case vuint:
-		return vint(int64(lhs) % int64(rhs))
-	case vnum:
-		return vnum(math.Mod(float64(lhs), float64(rhs)))
+	case Int:
+		return Int(int64(lhs) % int64(rhs))
+	case Uint:
+		return Int(int64(lhs) % int64(rhs))
+	case Float:
+		return Float(math.Mod(float64(lhs), float64(rhs)))
 	}
 	panic("unreachable")
 }
 
-func (lhs vint) Sqrt() Arith { return vint(math.Sqrt(float64(lhs))) }
+func (lhs Int) Sqrt() Arith { return Int(math.Sqrt(float64(lhs))) }
 
-func (lhs vint) Pow(rhs Arith) Arith {
+func (lhs Int) Pow(rhs Arith) Arith {
 	switch rhs := toarith(rhs).(type) {
-	case vint:
+	case Int:
 		if rhs == 0 {
-			return vuint(1)
+			return Uint(1)
 		} else if rhs < 0 {
-			return vnum(math.Pow(float64(lhs), float64(rhs)))
+			return Float(math.Pow(float64(lhs), float64(rhs)))
 		}
-		for q, i := lhs, vint(0); i < rhs; i++ {
+		for q, i := lhs, Int(0); i < rhs; i++ {
 			lhs = lhs * q
 		}
 		return lhs
-	case vuint:
+	case Uint:
 		if rhs == 0 {
-			return vuint(1)
+			return Uint(1)
 		}
-		for q, i := lhs, vuint(0); i < rhs; i++ {
+		for q, i := lhs, Uint(0); i < rhs; i++ {
 			lhs = lhs * q
 		}
 		return lhs
-	case vnum:
-		return vnum(math.Pow(float64(lhs), float64(rhs)))
+	case Float:
+		return Float(math.Pow(float64(lhs), float64(rhs)))
 	}
 	panic("unreachable")
 }
 
-func (lhs vint) Xor(rhs Bitwise) Bitwise { return vint(uint64(lhs) ^ uint64(tovuint(rhs))) }
-func (lhs vint) And(rhs Bitwise) Bitwise { return vint(uint64(lhs) & uint64(tovuint(rhs))) }
-func (lhs vint) Or(rhs Bitwise) Bitwise  { return vint(uint64(lhs) | uint64(tovuint(rhs))) }
-func (lhs vint) Not() Bitwise            { return vint(^uint64(lhs)) }
+func (lhs Int) Xor(rhs Bitwise) Bitwise { return Int(uint64(lhs) ^ uint64(touint(rhs))) }
+func (lhs Int) And(rhs Bitwise) Bitwise { return Int(uint64(lhs) & uint64(touint(rhs))) }
+func (lhs Int) Or(rhs Bitwise) Bitwise  { return Int(uint64(lhs) | uint64(touint(rhs))) }
+func (lhs Int) Not() Bitwise            { return Int(^uint64(lhs)) }
 
 // Unsigned integer
 
-func (lhs vuint) Float64() float64 { return float64(lhs) }
-func (lhs vuint) Int64() int64     { return int64(lhs) }
-func (lhs vuint) Uint64() uint64   { return uint64(lhs) }
-func (lhs vuint) Neg() Arith       { return -lhs }
+func (lhs Uint) Float64() float64 { return float64(lhs) }
+func (lhs Uint) Int64() int64     { return int64(lhs) }
+func (lhs Uint) Uint64() uint64   { return uint64(lhs) }
+func (lhs Uint) Neg() Arith       { return -lhs }
 
-func (lhs vuint) Round(roundingMode) Value { return lhs }
+func (lhs Uint) Round(RoundingMode) Value { return lhs }
 
-func (lhs vuint) ArithShift(bits Value) Value {
-	if bits := tovint(bits); bits < 0 {
-		return vuint(int64(lhs) << uint(-bits))
+func (lhs Uint) ArithShift(bits Value) Value {
+	if bits := toint(bits); bits < 0 {
+		return Uint(int64(lhs) << uint(-bits))
 	} else if bits > 0 {
-		return vuint(int64(lhs) >> uint(bits))
+		return Uint(int64(lhs) >> uint(bits))
 	}
 	return lhs
 }
 
-func (lhs vuint) BitShift(bits Value) Value {
-	if bits := tovint(bits); bits < 0 {
+func (lhs Uint) BitShift(bits Value) Value {
+	if bits := toint(bits); bits < 0 {
 		return lhs << uint(-bits)
 	} else if bits > 0 {
 		return lhs >> uint(bits)
@@ -330,131 +284,131 @@ func (lhs vuint) BitShift(bits Value) Value {
 	return lhs
 }
 
-func (lhs vuint) Add(rhs Arith) Arith {
+func (lhs Uint) Add(rhs Arith) Arith {
 	switch rhs := toarith(rhs).(type) {
-	case vuint:
-		return vuint(uint64(lhs) + uint64(rhs))
-	case vint:
-		return vuint(int64(lhs) + int64(rhs))
-	case vnum:
-		return vnum(float64(lhs) + float64(rhs))
+	case Uint:
+		return Uint(uint64(lhs) + uint64(rhs))
+	case Int:
+		return Uint(int64(lhs) + int64(rhs))
+	case Float:
+		return Float(float64(lhs) + float64(rhs))
 	}
 	panic("unreachable")
 }
 
-func (lhs vuint) Sub(rhs Arith) Arith {
+func (lhs Uint) Sub(rhs Arith) Arith {
 	switch rhs := toarith(rhs).(type) {
-	case vuint:
-		return vuint(uint64(lhs) - uint64(rhs))
-	case vint:
-		return vuint(int64(lhs) - int64(rhs))
-	case vnum:
-		return vnum(float64(lhs) - float64(rhs))
+	case Uint:
+		return Uint(uint64(lhs) - uint64(rhs))
+	case Int:
+		return Uint(int64(lhs) - int64(rhs))
+	case Float:
+		return Float(float64(lhs) - float64(rhs))
 	}
 	panic("unreachable")
 }
 
-func (lhs vuint) Mul(rhs Arith) Arith {
+func (lhs Uint) Mul(rhs Arith) Arith {
 	switch rhs := toarith(rhs).(type) {
-	case vuint:
-		return vint(uint64(lhs) * uint64(rhs))
-	case vint:
-		return vuint(int64(lhs) * int64(rhs))
-	case vnum:
-		return vnum(float64(lhs) * float64(rhs))
+	case Uint:
+		return Int(uint64(lhs) * uint64(rhs))
+	case Int:
+		return Uint(int64(lhs) * int64(rhs))
+	case Float:
+		return Float(float64(lhs) * float64(rhs))
 	}
 	panic("unreachable")
 }
 
-func (lhs vuint) Div(rhs Arith) Arith {
+func (lhs Uint) Div(rhs Arith) Arith {
 	switch rhs := toarith(rhs).(type) {
-	case vuint:
-		return vint(uint64(lhs) / uint64(rhs))
-	case vint:
-		return vuint(int64(lhs) / int64(rhs))
-	case vnum:
-		return vnum(float64(lhs) / float64(rhs))
+	case Uint:
+		return Int(uint64(lhs) / uint64(rhs))
+	case Int:
+		return Uint(int64(lhs) / int64(rhs))
+	case Float:
+		return Float(float64(lhs) / float64(rhs))
 	}
 	panic("unreachable")
 }
 
-func (lhs vuint) Mod(rhs Arith) Arith {
+func (lhs Uint) Mod(rhs Arith) Arith {
 	switch rhs := toarith(rhs).(type) {
-	case vuint:
-		return vint(uint64(lhs) % uint64(rhs))
-	case vint:
-		return vuint(int64(lhs) % int64(rhs))
-	case vnum:
-		return vnum(math.Mod(float64(lhs), float64(rhs)))
+	case Uint:
+		return Int(uint64(lhs) % uint64(rhs))
+	case Int:
+		return Uint(int64(lhs) % int64(rhs))
+	case Float:
+		return Float(math.Mod(float64(lhs), float64(rhs)))
 	}
 	panic("unreachable")
 }
 
-func (lhs vuint) Sqrt() Arith { return vuint(math.Sqrt(float64(lhs))) }
+func (lhs Uint) Sqrt() Arith { return Uint(math.Sqrt(float64(lhs))) }
 
-func (lhs vuint) Pow(rhs Arith) Arith {
+func (lhs Uint) Pow(rhs Arith) Arith {
 	switch rhs := toarith(rhs).(type) {
-	case vuint:
+	case Uint:
 		if rhs == 0 {
-			return vuint(1)
+			return Uint(1)
 		}
-		for q, i := lhs, vuint(0); i < rhs; i++ {
+		for q, i := lhs, Uint(0); i < rhs; i++ {
 			lhs = lhs * q
 		}
 		return lhs
-	case vint:
+	case Int:
 		if rhs == 0 {
-			return vuint(1)
+			return Uint(1)
 		} else if rhs < 0 {
-			return vnum(math.Pow(float64(lhs), float64(rhs)))
+			return Float(math.Pow(float64(lhs), float64(rhs)))
 		}
-		for q, i := lhs, vint(0); i < rhs; i++ {
+		for q, i := lhs, Int(0); i < rhs; i++ {
 			lhs = lhs * q
 		}
 		return lhs
-	case vnum:
-		return vnum(math.Pow(float64(lhs), float64(rhs)))
+	case Float:
+		return Float(math.Pow(float64(lhs), float64(rhs)))
 	}
 	panic("unreachable")
 }
 
-func (lhs vuint) Xor(rhs Bitwise) Bitwise { return lhs ^ tovuint(rhs) }
-func (lhs vuint) And(rhs Bitwise) Bitwise { return lhs & tovuint(rhs) }
-func (lhs vuint) Or(rhs Bitwise) Bitwise  { return lhs | tovuint(rhs) }
-func (lhs vuint) Not() Bitwise            { return ^lhs }
+func (lhs Uint) Xor(rhs Bitwise) Bitwise { return lhs ^ touint(rhs) }
+func (lhs Uint) And(rhs Bitwise) Bitwise { return lhs & touint(rhs) }
+func (lhs Uint) Or(rhs Bitwise) Bitwise  { return lhs | touint(rhs) }
+func (lhs Uint) Not() Bitwise            { return ^lhs }
 
 func toarith(v Value) (r Arith) {
 	switch v := v.(type) {
 	case Arith:
 		return v
 	case FloatValuer:
-		return vnum(v.Float64())
+		return Float(v.Float64())
 	case IntValuer:
-		return vint(v.Int64())
+		return Int(v.Int64())
 	case UintValuer:
-		return vuint(v.Uint64())
+		return Uint(v.Uint64())
 	case int:
-		return vint(v)
+		return Int(v)
 	case int64:
-		return vint(v)
+		return Int(v)
 	case int32:
-		return vint(v)
+		return Int(v)
 	case int16:
-		return vint(v)
+		return Int(v)
 	case float64:
-		return vnum(v)
+		return Float(v)
 	case float32:
-		return vnum(v)
+		return Float(v)
 	case uint:
-		return vuint(v)
+		return Uint(v)
 	case uint64:
-		return vuint(v)
+		return Uint(v)
 	case uint32:
-		return vuint(v)
+		return Uint(v)
 	case uint16:
-		return vuint(v)
+		return Uint(v)
 	case uint8:
-		return vuint(v)
+		return Uint(v)
 	default:
 		panic(fmt.Errorf("unable to convert %T to arithmetic type", v))
 	}
@@ -465,68 +419,114 @@ func tobitwise(v Value) (r Bitwise) {
 	case Bitwise:
 		return v
 	case IntValuer:
-		return vint(v.Int64())
+		return Int(v.Int64())
 	case UintValuer:
-		return vuint(v.Uint64())
+		return Uint(v.Uint64())
 	case float64:
-		return vint(v)
+		return Int(v)
 	case float32:
-		return vint(v)
+		return Int(v)
 	case int:
-		return vint(v)
+		return Int(v)
 	case int64:
-		return vint(v)
+		return Int(v)
 	case int32:
-		return vint(v)
+		return Int(v)
 	case int16:
-		return vint(v)
+		return Int(v)
 	case uint:
-		return vuint(v)
+		return Uint(v)
 	case uint64:
-		return vuint(v)
+		return Uint(v)
 	case uint32:
-		return vuint(v)
+		return Uint(v)
 	case uint16:
-		return vuint(v)
+		return Uint(v)
 	case uint8:
-		return vuint(v)
+		return Uint(v)
 	default:
 		panic(fmt.Errorf("unable to convert %T to bitwise type", v))
 	}
 }
 
-func tovnum(v Value) vnum {
+func tofloat(v Value) Float {
 	switch v := toarith(v).(type) {
-	case vnum:
+	case Float:
 		return v
-	case vint:
-		return vnum(v)
-	case vuint:
-		return vnum(v)
+	case Int:
+		return Float(v)
+	case Uint:
+		return Float(v)
 	}
 	panic("unreachable")
 }
 
-func tovint(v Value) vint {
+func toint(v Value) Int {
 	switch v := toarith(v).(type) {
-	case vint:
+	case Int:
 		return v
-	case vnum:
-		return vint(v)
-	case vuint:
-		return vint(v)
+	case Float:
+		return Int(v)
+	case Uint:
+		return Int(v)
 	}
 	panic("unreachable")
 }
 
-func tovuint(v Value) vuint {
+func touint(v Value) Uint {
 	switch v := toarith(v).(type) {
-	case vint:
-		return vuint(v)
-	case vnum:
-		return vuint(v)
-	case vuint:
+	case Int:
+		return Uint(v)
+	case Float:
+		return Uint(v)
+	case Uint:
 		return v
 	}
 	panic("unreachable")
+}
+
+func arithShift(v, bits Value) Value {
+	var (
+		ov  = v
+		try bool
+	)
+loop:
+	switch vx := v.(type) {
+	case Uint:
+		return vx.ArithShift(bits)
+	case Int:
+		return vx.ArithShift(bits)
+	case ArithmeticShifter:
+		return vx.ArithShift(bits)
+	default:
+		if try {
+			panic(fmt.Errorf("invalid type for arithmetic shift: %T", ov))
+		}
+		try = true
+		v = tobitwise(v)
+		goto loop
+	}
+}
+
+func bitwiseShift(v, bits Value) Value {
+	var (
+		ov  = v
+		try bool
+	)
+loop:
+	switch vx := v.(type) {
+	case Uint:
+		return vx.BitShift(bits)
+	case Int:
+		return vx.BitShift(bits)
+	case BitShifter:
+		return vx.BitShift(bits)
+	default:
+		if try {
+			panic(fmt.Errorf("invalid type for bitwise shift: %T", ov))
+		}
+		try = true
+		v = tobitwise(v)
+		goto loop
+	}
 }

@@ -278,11 +278,11 @@ func (i RegisterIndex) String() string {
 func (i RegisterIndex) load(th *Thread) Value {
 	switch i {
 	case 0:
-		return vint(th.pc)
+		return Int(th.pc)
 	case 1:
-		return vint(th.ebp)
+		return Int(th.ebp)
 	case 2:
-		return vint(len(th.stack))
+		return Int(len(th.stack))
 	default:
 		ri := int(i - specialRegisters)
 		if ri < 0 || ri >= len(th.reg) {
@@ -297,11 +297,11 @@ func (i RegisterIndex) store(th *Thread, v Value) {
 	case 0:
 		var pc int64
 		switch v := v.(type) {
-		case vint:
+		case Int:
 			pc = int64(v)
 		case int64:
 			pc = v
-		case vuint:
+		case Uint:
 			pc = int64(v)
 		case int32:
 			pc = int64(v)
@@ -326,7 +326,7 @@ func (i RegisterIndex) store(th *Thread, v Value) {
 
 	case 2:
 		var (
-			sp  = int(tovint(v))
+			sp  = int(toint(v))
 			esp = len(th.stack)
 			ebp = th.ebp
 		)

@@ -26,7 +26,7 @@ func TestOpAdd(t *testing.T) {
 			// r[0] = r[2] - 4
 			mkBinaryInstr(OpSub, 4, 11, constIndex(1)),
 		},
-		consts: []Value{vnum(0), vnum(4), vnum(10.3), vint(-1)},
+		consts: []Value{Float(0), Float(4), Float(10.3), Int(-1)},
 	}
 
 	th.pushFrame(0, fn)
@@ -37,7 +37,7 @@ func TestOpAdd(t *testing.T) {
 
 	testRunThread(t, th)
 	testThreadState(t, th, []threadStateTest{
-		{RegisterIndex(4), vnum(26.6)},
+		{RegisterIndex(4), Float(26.6)},
 	})
 }
 
@@ -54,7 +54,7 @@ func TestOpBitwiseShift(t *testing.T) {
 			mkBinaryInstr(OpBitshift, 7, 6, constIndex(2)),
 			mkBinaryInstr(OpBitshift, 8, 6, constIndex(3)),
 		},
-		consts: []Value{vuint(1003), vnum(-1003), vnum(4), vnum(-4)},
+		consts: []Value{Uint(1003), Float(-1003), Float(4), Float(-4)},
 	}
 
 	th.pushFrame(0, fn)
@@ -63,10 +63,10 @@ func TestOpBitwiseShift(t *testing.T) {
 
 	testRunThread(t, th)
 	testThreadState(t, th, []threadStateTest{
-		{RegisterIndex(4), vuint(62)},
-		{RegisterIndex(5), vuint(16048)},
-		{RegisterIndex(7), vint(1152921504606846913)},
-		{RegisterIndex(8), vint(-16048)},
+		{RegisterIndex(4), Uint(62)},
+		{RegisterIndex(5), Uint(16048)},
+		{RegisterIndex(7), Int(1152921504606846913)},
+		{RegisterIndex(8), Int(-16048)},
 	})
 }
 
@@ -84,7 +84,7 @@ func TestOpArithShift(t *testing.T) {
 			mkBinaryInstr(OpArithshift, 8, 6, constIndex(3)),
 		},
 		// Test with float64 for negative side just to ensure conversion works
-		consts: []Value{vuint(1003), vnum(-1003), vnum(4), vnum(-4)},
+		consts: []Value{Uint(1003), Float(-1003), Float(4), Float(-4)},
 	}
 
 	th.pushFrame(0, fn)
@@ -93,10 +93,10 @@ func TestOpArithShift(t *testing.T) {
 
 	testRunThread(t, th)
 	testThreadState(t, th, []threadStateTest{
-		{RegisterIndex(4), vuint(62)},
-		{RegisterIndex(5), vuint(16048)},
-		{RegisterIndex(7), vint(-63)},
-		{RegisterIndex(8), vint(-16048)},
+		{RegisterIndex(4), Uint(62)},
+		{RegisterIndex(5), Uint(16048)},
+		{RegisterIndex(7), Int(-63)},
+		{RegisterIndex(8), Int(-16048)},
 	})
 }
 
