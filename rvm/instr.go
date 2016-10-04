@@ -29,9 +29,9 @@ func (i Instruction) isExt() bool {
 }
 
 func (i Instruction) Opcode() Opcode {
-	if i&0x1 != 0 {
-		panic("unimplemented")
-	}
+	// If the instruction is extended... (probably have specialized instruction types at that point)
+	// if i&0x1 != 0 {
+	// }
 	return Opcode((i >> 1) & 0x1F)
 }
 
