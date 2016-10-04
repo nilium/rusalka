@@ -15,41 +15,56 @@ import (
 // |    +-----------------------| 00001FE0 | Output register(8)
 // +----------------------------| 0000001F | Opcode (universal; 0x1F reserved for extensions)
 
-type Instruction uint32
+type Instruction uint64
 
 const (
-	opBinArgBConst uint32 = 0x00200000
-	opBinArgBStack uint32 = 0x80000000
+	opBinOutStack  Instruction = 0x40
+	opBinArgAStack Instruction = 0x2000
+	opBinArgBConst Instruction = 0x100000
+	opBinArgBStack Instruction = 0x80000000
 )
 
-func (i Instruction) Opcode() Opcode {
-	return Opcode(i & 0x1F)
+func (i Instruction) isExt() bool {
+	return i&0x1 != 0
 }
 
-func (i Instruction) regOut() RegisterIndex {
-	return RegisterIndex((i >> 5) & 0xFF)
+func (i Instruction) Opcode() Opcode {
+	if i&0x1 != 0 {
+		panic("unimplemented")
+	}
+	return Opcode((i >> 1) & 0x1F)
+}
+
+func (i Instruction) regOut() Index {
+	if i&opBinOutStack != 0 {
+		return StackIndex(int32(i<<19) >> 27)
+	}
+	return RegisterIndex((i >> 7) & 0x3F)
 }
 
 func (i Instruction) argA() Index {
-	return RegisterIndex((i >> 13) & 0xFF)
+	if i&0x2000 != 0 {
+		return StackIndex(int32(i<<12) >> 27)
+	}
+	return RegisterIndex((i >> 14) & 0x3F)
 }
 
 func (i Instruction) argAX() int {
-	return int(int32(i<<11) >> 24)
+	return int(int32(i<<12) >> 26)
 }
 
 func (i Instruction) argAU() uint {
-	return uint(i>>13) & 0xFF
+	return uint(i>>13) & 0x7F
 }
 
 func (i Instruction) argB() Index {
-	ix := uint32(i) >> 22
-	if uint32(i)&opBinArgBConst != 0 {
-		return constIndex(ix)
-	} else if ix&0x200 != 0 {
+	ix := uint32(i >> 21)
+	if i&opBinArgBConst != 0 {
+		return constIndex(ix & 0x7FF)
+	} else if i&opBinArgBStack != 0 {
 		return StackIndex(int32(i<<1) >> 23)
 	}
-	return RegisterIndex(ix & 0xFF)
+	return RegisterIndex(ix & 0x3F)
 }
 
 func (i Instruction) String() string {
@@ -82,5 +97,5 @@ func (i Instruction) String() string {
 }
 
 func (i Instruction) execer() opFunc {
-	return opFuncTable[int(i&0x1F)]
+	return opFuncTable[int(i>>1)&0x1F]
 }

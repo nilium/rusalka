@@ -24,7 +24,7 @@ func (r *RuntimePanic) Err() error {
 type Value interface{}
 
 const (
-	registerCount    = 256
+	registerCount    = 64
 	specialRegisters = 3
 
 	maxInt = int(^uint(0) >> 1)
@@ -44,7 +44,7 @@ var (
 type funcData struct {
 	// PC for the function
 	pc   int64
-	code []Instruction
+	code []uint32
 	// constants that may be referenced by instructions
 	consts []Value
 
@@ -139,19 +139,27 @@ func (th *Thread) copyAndResizeStack(newTop, keep int) {
 	th.resizeStack(newTop + keep)
 }
 
-func (th *Thread) Run() (err error) {
+func (th *Thread) RunProtected() (err error) {
 	defer func() {
 		if rc := recover(); rc != nil {
 			err = &RuntimePanic{rc}
 		}
 	}()
-	for th.pc < int64(len(th.code)) {
+	th.Run()
+	return nil
+}
+
+func (th *Thread) Run() {
+	for codelen := int64(len(th.code)); th.pc < codelen; {
 		pc := th.pc
 		th.pc++
-		instr := th.code[pc]
+		instr := Instruction(th.code[pc])
+		if instr.isExt() && th.pc < codelen {
+			th.pc++
+			instr |= Instruction(th.code[pc]) << 32
+		}
 		instr.execer()(instr, th)
 	}
-	return nil
 }
 
 func (th *Thread) Push(v Value) {

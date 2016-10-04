@@ -6,25 +6,25 @@ func TestOpAdd(t *testing.T) {
 	th := NewThread()
 
 	fn := funcData{
-		code: []Instruction{
+		code: []uint32{
 			// grow 4
-			mkBinaryInstr(OpReserve, 0, 0, constIndex(1)),
-			mkBinaryInstr(OpPush, 0, 0, constIndex(2)),
-			mkBinaryInstr(OpAdd, 2, 2, constIndex(3)),
+			mkBinaryInstr(OpReserve, RegisterIndex(0), RegisterIndex(0), constIndex(1)),
+			mkBinaryInstr(OpPush, RegisterIndex(0), RegisterIndex(0), constIndex(2)),
+			mkBinaryInstr(OpAdd, RegisterIndex(2), RegisterIndex(2), constIndex(3)),
 			// r[3] = 4
-			mkBinaryInstr(OpLoad, 31, 0, constIndex(1)),
+			mkBinaryInstr(OpLoad, RegisterIndex(31), RegisterIndex(0), constIndex(1)),
 			// r[3] = 4
-			mkBinaryInstr(OpLoad, 11, 0, StackIndex(-3)),
+			mkBinaryInstr(OpLoad, RegisterIndex(11), RegisterIndex(0), StackIndex(-3)),
 			// r[2] = s[-3] + 10.3
-			mkBinaryInstr(OpAdd, 11, 11, constIndex(2)),
+			mkBinaryInstr(OpAdd, RegisterIndex(11), RegisterIndex(11), constIndex(2)),
 			// r[2] += s[3]
-			mkBinaryInstr(OpAdd, 11, 11, StackIndex(3)),
+			mkBinaryInstr(OpAdd, RegisterIndex(11), RegisterIndex(11), StackIndex(3)),
 			// r[2] += r[3]
-			mkBinaryInstr(OpAdd, 11, 11, RegisterIndex(31)),
+			mkBinaryInstr(OpAdd, RegisterIndex(11), RegisterIndex(11), RegisterIndex(31)),
 			// r[2] += 10.3
-			mkBinaryInstr(OpAdd, 11, 11, constIndex(2)),
+			mkBinaryInstr(OpAdd, RegisterIndex(11), RegisterIndex(11), constIndex(2)),
 			// r[0] = r[2] - 4
-			mkBinaryInstr(OpSub, 4, 11, constIndex(1)),
+			mkBinaryInstr(OpSub, RegisterIndex(4), RegisterIndex(11), constIndex(1)),
 		},
 		consts: []Value{Float(0), Float(4), Float(10.3), Int(-1)},
 	}
@@ -45,14 +45,14 @@ func TestOpBitwiseShift(t *testing.T) {
 	th := NewThread()
 
 	fn := funcData{
-		code: []Instruction{
+		code: []uint32{
 			// r[3], r[6] = 1003, -1003
-			mkBinaryInstr(OpLoad, 3, 0, constIndex(0)),
-			mkBinaryInstr(OpLoad, 6, 0, constIndex(1)),
-			mkBinaryInstr(OpBitshift, 4, 3, constIndex(2)),
-			mkBinaryInstr(OpBitshift, 5, 3, constIndex(3)),
-			mkBinaryInstr(OpBitshift, 7, 6, constIndex(2)),
-			mkBinaryInstr(OpBitshift, 8, 6, constIndex(3)),
+			mkBinaryInstr(OpLoad, RegisterIndex(3), RegisterIndex(0), constIndex(0)),
+			mkBinaryInstr(OpLoad, RegisterIndex(6), RegisterIndex(0), constIndex(1)),
+			mkBinaryInstr(OpBitshift, RegisterIndex(4), RegisterIndex(3), constIndex(2)),
+			mkBinaryInstr(OpBitshift, RegisterIndex(5), RegisterIndex(3), constIndex(3)),
+			mkBinaryInstr(OpBitshift, RegisterIndex(7), RegisterIndex(6), constIndex(2)),
+			mkBinaryInstr(OpBitshift, RegisterIndex(8), RegisterIndex(6), constIndex(3)),
 		},
 		consts: []Value{Uint(1003), Float(-1003), Float(4), Float(-4)},
 	}
@@ -74,14 +74,14 @@ func TestOpArithShift(t *testing.T) {
 	th := NewThread()
 
 	fn := funcData{
-		code: []Instruction{
+		code: []uint32{
 			// r[3], r[6] = 1003, -1003
-			mkBinaryInstr(OpLoad, 3, 0, constIndex(0)),
-			mkBinaryInstr(OpLoad, 6, 0, constIndex(1)),
-			mkBinaryInstr(OpArithshift, 4, 3, constIndex(2)),
-			mkBinaryInstr(OpArithshift, 5, 3, constIndex(3)),
-			mkBinaryInstr(OpArithshift, 7, 6, constIndex(2)),
-			mkBinaryInstr(OpArithshift, 8, 6, constIndex(3)),
+			mkBinaryInstr(OpLoad, RegisterIndex(3), RegisterIndex(0), constIndex(0)),
+			mkBinaryInstr(OpLoad, RegisterIndex(6), RegisterIndex(0), constIndex(1)),
+			mkBinaryInstr(OpArithshift, RegisterIndex(4), RegisterIndex(3), constIndex(2)),
+			mkBinaryInstr(OpArithshift, RegisterIndex(5), RegisterIndex(3), constIndex(3)),
+			mkBinaryInstr(OpArithshift, RegisterIndex(7), RegisterIndex(6), constIndex(2)),
+			mkBinaryInstr(OpArithshift, RegisterIndex(8), RegisterIndex(6), constIndex(3)),
 		},
 		// Test with float64 for negative side just to ensure conversion works
 		consts: []Value{Uint(1003), Float(-1003), Float(4), Float(-4)},
@@ -117,8 +117,13 @@ func testThreadState(t *testing.T, th *Thread, tests []threadStateTest) {
 
 func testRunThread(t *testing.T, th *Thread) {
 	t.Log("Code:")
-	for pc, instr := range th.code {
-		t.Logf("%2d %v", pc, instr)
+	for pc, i := 0, 0; i < len(th.code); pc, i = pc+1, i+1 {
+		instr := Instruction(th.code[i])
+		if pc < len(th.code) && instr.isExt() {
+			i++
+			instr |= Instruction(th.code[i]) << 32
+		}
+		t.Logf("%2d:%d %v", pc, i, instr)
 	}
 
 	t.Log("Stack (before):")
@@ -126,9 +131,26 @@ func testRunThread(t *testing.T, th *Thread) {
 		t.Logf("%2d %#+v", i, e)
 	}
 
-	if err := th.Run(); err != nil {
-		t.Fatalf("th.Run() = %v; want %v", err, nil)
-	}
+	done := false
+	defer func() {
+		pc := th.pc
+		if done || pc <= 0 {
+			return
+		}
+
+		rc := recover()
+		if rc != nil {
+			instr := Instruction(th.code[pc-1])
+			if pc > 1 && Instruction(th.code[pc-2]).isExt() {
+				instr = instr<<32 | Instruction(th.code[pc-2])
+				pc--
+			}
+			t.Logf("last instruction: %d %v", pc, instr)
+		}
+		panic(rc)
+	}()
+	th.Run()
+	done = true
 
 	t.Log("Stack (after):")
 	for i, e := range th.stack {
