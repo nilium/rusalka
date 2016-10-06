@@ -22,6 +22,11 @@ const (
 	opBinArgAStack Instruction = 0x2000
 	opBinArgBConst Instruction = 0x100000
 	opBinArgBStack Instruction = 0x80000000
+
+	opCmpArgAConst Instruction = 0x200
+	opCmpArgAStack Instruction = 0x80000
+	opCmpArgBConst Instruction = 0x100000
+	opCmpArgBStack Instruction = 0x40000000
 )
 
 func (i Instruction) isExt() bool {
@@ -63,6 +68,30 @@ func (i Instruction) argB() Index {
 		return constIndex(ix & 0x7FF)
 	} else if i&opBinArgBStack != 0 {
 		return StackIndex(int32(i<<1) >> 23)
+	}
+	return RegisterIndex(ix & 0x3F)
+}
+
+func (i Instruction) cmpOp() compareOp {
+	return compareOp((i >> 6) & 0x7)
+}
+
+func (i Instruction) cmpArgA() Index {
+	ix := uint32((i >> 10) & 0x3FF)
+	if i&opCmpArgAConst != 0 {
+		return constIndex(ix)
+	} else if i&opCmpArgAStack != 0 {
+		return StackIndex(int32(i<<13) >> 24)
+	}
+	return RegisterIndex(ix & 0x3F)
+}
+
+func (i Instruction) cmpArgB() Index {
+	ix := uint32((i >> 21) & 0x3FF)
+	if i&opBinArgBConst != 0 {
+		return constIndex(ix)
+	} else if i&opBinArgBStack != 0 {
+		return StackIndex(int32(i<<2) >> 24)
 	}
 	return RegisterIndex(ix & 0x3F)
 }
