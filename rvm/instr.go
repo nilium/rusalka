@@ -48,7 +48,7 @@ func (i Instruction) regOut() Index {
 }
 
 func (i Instruction) argA() Index {
-	if i&0x2000 != 0 {
+	if i&opBinArgAStack != 0 {
 		return StackIndex(int32(i<<12) >> 26)
 	}
 	return RegisterIndex((i >> 14) & 0x3F)
@@ -80,7 +80,7 @@ func (i Instruction) cmpArgA() Index {
 	ix := uint32((i >> 10) & 0x3FF)
 	if i&opCmpArgAConst != 0 {
 		return constIndex(ix)
-	} else if ix&0x200 != 0 {
+	} else if i&opCmpArgAStack != 0 {
 		return StackIndex(int32(i<<13) >> 23)
 	}
 	return RegisterIndex(ix & 0x3F)
