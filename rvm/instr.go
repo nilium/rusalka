@@ -99,3 +99,93 @@ func (i Instruction) String() string {
 func (i Instruction) execer() opFunc {
 	return opFuncTable[int(i>>1)&0x1F]
 }
+
+type compareOp uint
+
+const (
+	cmpLess compareOp = iota
+	cmpLequal
+	cmpEqual
+	cmpNotEqual
+	cmpGreater
+	cmpGequal
+	cmpIncludes
+	cmpExcludes
+)
+
+type (
+	LessComparator interface {
+		LessThan(Value) bool
+	}
+
+	LessEqualComparator interface {
+		LessEqual(Value) bool
+	}
+
+	EqualComparator interface {
+		EqualTo(Value) bool
+	}
+
+	Comparable interface {
+		LessComparator
+		LessEqualComparator
+		EqualComparator
+	}
+)
+
+func lessThan(lhs, rhs Value) bool {
+	switch lhs := lhs.(type) {
+	case LessComparator:
+		return lhs.LessThan(rhs)
+	default:
+		return false
+	}
+}
+
+func lessEqual(lhs, rhs Value) bool {
+	type lessEqualFallback interface {
+		LessComparator
+		EqualComparator
+	}
+
+	switch lhs := lhs.(type) {
+	case LessEqualComparator:
+		return lhs.LessEqual(rhs)
+	case lessEqualFallback:
+		return lhs.LessThan(rhs) || lhs.EqualTo(rhs)
+	default:
+		return false
+	}
+}
+
+func equalTo(lhs, rhs Value) bool {
+	switch lhs := lhs.(type) {
+	case EqualComparator:
+		return lhs.EqualTo(rhs)
+	default:
+		return false
+	}
+}
+
+func (c compareOp) comparator() (result bool, fn func(lhs, rhs Value) bool) {
+	switch c {
+	case cmpLess:
+		return true, lessThan
+	case cmpLequal:
+		return true, lessEqual
+	case cmpEqual:
+		return true, equalTo
+	case cmpNotEqual:
+		return false, equalTo
+	case cmpGreater:
+		return false, lessEqual
+	case cmpGequal:
+		return false, lessThan
+	case cmpIncludes:
+		fallthrough
+	case cmpExcludes:
+		fallthrough
+	default:
+		return false, func(Value, Value) bool { panic(fmt.Errorf("bad comparator op: %d", c)) }
+	}
+}
