@@ -60,5 +60,55 @@ loop:
 	default:
 		panic(fmt.Errorf("invalid index type %T; must be register, stack, or const", argB))
 	}
+
+	return instr
+}
+
+func mkTestInstr(oper compareOp, argA, argB Index) (instr uint32) {
+	instr = uint32(OpTest&0x1F)<<1 |
+		uint32(oper&0x7)<<6
+
+	switch arg := argA.(type) {
+	case nil:
+	case RegisterIndex:
+		if arg < 0 || arg >= registerCount {
+			panic(InvalidRegister(arg))
+		}
+		instr |= uint32(arg&0x3F) << 10
+	case constIndex:
+		if arg < 0 || arg > 1023 {
+			panic(InvalidConstIndex(arg))
+		}
+		instr |= (uint32(arg&0x3FF))<<10 | uint32(opCmpArgAConst)
+	case StackIndex:
+		if arg < -256 || arg > 255 {
+			panic(InvalidStackIndex(arg))
+		}
+		instr |= uint32(int32(arg<<24))>>13 | uint32(opCmpArgAStack)
+	default:
+		panic(fmt.Errorf("invalid index type %T; must be register, stack, or const", arg))
+	}
+
+	switch arg := argB.(type) {
+	case nil:
+	case RegisterIndex:
+		if arg < 0 || arg >= registerCount {
+			panic(InvalidRegister(arg))
+		}
+		instr |= uint32(arg&0x3F) << 21
+	case constIndex:
+		if arg < 0 || arg > 1023 {
+			panic(InvalidConstIndex(arg))
+		}
+		instr |= (uint32(arg&0x3FF))<<21 | uint32(opCmpArgBConst)
+	case StackIndex:
+		if arg < -256 || arg > 255 {
+			panic(InvalidStackIndex(arg))
+		}
+		instr |= uint32(int32(arg<<24))>>2 | uint32(opCmpArgBStack)
+	default:
+		panic(fmt.Errorf("invalid index type %T; must be register, stack, or const", arg))
+	}
+
 	return instr
 }
