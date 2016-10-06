@@ -116,7 +116,7 @@ func (i Instruction) String() string {
 		return fmt.Sprint(op, i.regOut(), i.argA(), i.argB())
 	// Cond
 	case OpTest:
-		return fmt.Sprint(op, i.regOut(), i.argA(), i.argB())
+		return fmt.Sprint(op, i.cmpArgA(), i.cmpOp(), i.cmpArgB())
 	// Frame
 	case OpCall, OpReturn:
 		return fmt.Sprint(op, i.regOut(), i.argA(), i.argB())
@@ -193,6 +193,29 @@ func equalTo(lhs, rhs Value) bool {
 		return lhs.EqualTo(rhs)
 	default:
 		return false
+	}
+}
+
+func (c compareOp) String() string {
+	switch c {
+	case cmpLess:
+		return "<"
+	case cmpLequal:
+		return "<="
+	case cmpEqual:
+		return "=="
+	case cmpNotEqual:
+		return "<>"
+	case cmpGreater:
+		return ">"
+	case cmpGequal:
+		return ">="
+	case cmpIncludes:
+		return "includes"
+	case cmpExcludes:
+		return "excludes"
+	default:
+		return "{bad-test-op}"
 	}
 }
 
