@@ -19,7 +19,7 @@ loop:
 		if out < -32 || out > 31 {
 			panic(InvalidRegister(out))
 		}
-		instr |= uint32(int32(out<<27))>>19 | uint32(opBinOutStack)
+		instr |= uint32(int32(out<<26))>>19 | uint32(opBinOutStack)
 	default:
 		panic(fmt.Errorf("invalid index type %T; must be register or stack", out))
 	}
@@ -35,7 +35,7 @@ loop:
 		if argA < -32 || argA > 31 {
 			panic(InvalidRegister(argA))
 		}
-		instr |= uint32(int32(argA<<27))>>12 | uint32(opBinArgAStack)
+		instr |= uint32(int32(argA<<26))>>12 | uint32(opBinArgAStack)
 	default:
 		panic(fmt.Errorf("invalid index type %T; must be register or stack", argA))
 	}
@@ -56,7 +56,7 @@ loop:
 		if argB < -512 || argB > 511 {
 			panic(InvalidStackIndex(argB))
 		}
-		instr |= uint32(int32(argB<<23))>>1 | uint32(opBinArgBStack)
+		instr |= uint32(int32(argB<<22))>>1 | uint32(opBinArgBStack)
 	default:
 		panic(fmt.Errorf("invalid index type %T; must be register, stack, or const", argB))
 	}
@@ -84,7 +84,7 @@ func mkTestInstr(oper compareOp, argA, argB Index) (instr uint32) {
 		if arg < -256 || arg > 255 {
 			panic(InvalidStackIndex(arg))
 		}
-		instr |= uint32(int32(arg<<24))>>13 | uint32(opCmpArgAStack)
+		instr |= uint32(int32(arg<<23))>>13 | uint32(opCmpArgAStack)
 	default:
 		panic(fmt.Errorf("invalid index type %T; must be register, stack, or const", arg))
 	}
@@ -105,7 +105,7 @@ func mkTestInstr(oper compareOp, argA, argB Index) (instr uint32) {
 		if arg < -256 || arg > 255 {
 			panic(InvalidStackIndex(arg))
 		}
-		instr |= uint32(int32(arg<<24))>>2 | uint32(opCmpArgBStack)
+		instr |= uint32(int32(arg<<23))>>2 | uint32(opCmpArgBStack)
 	default:
 		panic(fmt.Errorf("invalid index type %T; must be register, stack, or const", arg))
 	}

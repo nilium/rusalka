@@ -42,14 +42,14 @@ func (i Instruction) Opcode() Opcode {
 
 func (i Instruction) regOut() Index {
 	if i&opBinOutStack != 0 {
-		return StackIndex(int32(i<<19) >> 27)
+		return StackIndex(int32(i<<19) >> 26)
 	}
 	return RegisterIndex((i >> 7) & 0x3F)
 }
 
 func (i Instruction) argA() Index {
 	if i&0x2000 != 0 {
-		return StackIndex(int32(i<<12) >> 27)
+		return StackIndex(int32(i<<12) >> 26)
 	}
 	return RegisterIndex((i >> 14) & 0x3F)
 }
@@ -67,7 +67,7 @@ func (i Instruction) argB() Index {
 	if i&opBinArgBConst != 0 {
 		return constIndex(ix & 0x7FF)
 	} else if i&opBinArgBStack != 0 {
-		return StackIndex(int32(i<<1) >> 23)
+		return StackIndex(int32(i<<1) >> 22)
 	}
 	return RegisterIndex(ix & 0x3F)
 }
@@ -80,18 +80,18 @@ func (i Instruction) cmpArgA() Index {
 	ix := uint32((i >> 10) & 0x3FF)
 	if i&opCmpArgAConst != 0 {
 		return constIndex(ix)
-	} else if i&opCmpArgAStack != 0 {
-		return StackIndex(int32(i<<13) >> 24)
+	} else if ix&0x200 != 0 {
+		return StackIndex(int32(i<<13) >> 23)
 	}
 	return RegisterIndex(ix & 0x3F)
 }
 
 func (i Instruction) cmpArgB() Index {
 	ix := uint32((i >> 21) & 0x3FF)
-	if i&opBinArgBConst != 0 {
+	if i&opCmpArgBConst != 0 {
 		return constIndex(ix)
-	} else if i&opBinArgBStack != 0 {
-		return StackIndex(int32(i<<2) >> 24)
+	} else if i&opCmpArgBStack != 0 {
+		return StackIndex(int32(i<<2) >> 23)
 	}
 	return RegisterIndex(ix & 0x3F)
 }
