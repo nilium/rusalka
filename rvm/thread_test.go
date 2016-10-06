@@ -119,11 +119,13 @@ func testRunThread(t *testing.T, th *Thread) {
 	t.Log("Code:")
 	for pc, i := 0, 0; i < len(th.code); pc, i = pc+1, i+1 {
 		instr := Instruction(th.code[i])
+		fx := "%08x"
 		if pc < len(th.code) && instr.isExt() {
 			i++
 			instr |= Instruction(th.code[i]) << 32
+			fx = "%016x"
 		}
-		t.Logf("%2d:%d %v", pc, i, instr)
+		t.Logf("%-6d %-6d %-48v ["+fx+"]", pc, i, instr, uint64(instr))
 	}
 
 	t.Log("Stack (before):")
@@ -141,11 +143,13 @@ func testRunThread(t *testing.T, th *Thread) {
 		rc := recover()
 		if rc != nil {
 			instr := Instruction(th.code[pc-1])
+			fx := "%08x"
 			if pc > 1 && Instruction(th.code[pc-2]).isExt() {
 				instr = instr<<32 | Instruction(th.code[pc-2])
 				pc--
+				fx = "%016x"
 			}
-			t.Logf("last instruction: %d %v", pc, instr)
+			t.Logf("last instruction: %d %-48v ["+fx+"]", pc, instr, uint64(instr))
 		}
 		panic(rc)
 	}()
