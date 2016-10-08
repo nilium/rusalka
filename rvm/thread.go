@@ -25,8 +25,10 @@ func (r *RuntimePanic) Err() error {
 type Value interface{}
 
 const (
-	registerCount    = 64
-	specialRegisters = 3
+	registerCount     = 64
+	callRegisters     = 16
+	specialRegisters  = 3
+	volatileRegisters = registerCount - (specialRegisters + callRegisters)
 
 	maxInt = int(^uint(0) >> 1)
 	minInt = -(maxInt - 1)
@@ -53,7 +55,8 @@ type funcData struct {
 }
 
 type stackFrame struct {
-	ebp int // starting ebp of this frame
+	ebp   int // starting ebp of this frame
+	local [callRegisters]Value
 	funcData
 }
 
@@ -61,7 +64,7 @@ type Thread struct {
 	stackFrame
 	stack  []Value
 	frames []stackFrame
-	reg    [registerCount - specialRegisters]Value
+	reg    [volatileRegisters]Value
 }
 
 // NewThread allocates a new VM thread.
@@ -89,6 +92,7 @@ func (th *Thread) pushFrame(ebpOffset int, fn funcData) {
 	// Copy registers (may be used for argument passing)
 	th.stackFrame = stackFrame{
 		ebp:      len(th.stack) + ebpOffset,
+		local:    th.local,
 		funcData: fn,
 	}
 }
@@ -323,11 +327,12 @@ func (i RegisterIndex) load(th *Thread) Value {
 		return Int(len(th.stack))
 	default:
 		ri := int(i - specialRegisters)
-		if ri < 0 || ri >= len(th.reg) {
-			panic(InvalidRegister(i))
+		if ri >= 0 && ri < callRegisters {
+			return th.local[ri]
 		}
-		return th.reg[ri]
+		return th.reg[ri-callRegisters]
 	}
+	return nil
 }
 
 func (i RegisterIndex) store(th *Thread, v Value) {
@@ -385,9 +390,10 @@ func (i RegisterIndex) store(th *Thread, v Value) {
 
 	default:
 		ri := int(i - specialRegisters)
-		if ri < 0 || ri >= len(th.reg) {
-			panic(InvalidRegister(i))
+		if ri >= 0 && ri < callRegisters {
+			th.local[ri] = v
+			return
 		}
-		th.reg[ri] = v
+		th.reg[ri-callRegisters] = v
 	}
 }
