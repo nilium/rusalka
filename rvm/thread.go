@@ -19,8 +19,9 @@ func (r *RuntimePanic) Err() error {
 	return err
 }
 
-// value is a general type for any type that can appear in the stack, registers, or constants table. It is currently the
-// empty interface due to lack of specification around types while at least retaining concrete type information.
+// A Value is a general interface for any type that can appear in the stack, registers, or constants table (though,
+// typically, constants will only contain basic types). It is currently the empty interface due to lack of specification
+// around types while at least retaining concrete type information.
 type Value interface{}
 
 const (
