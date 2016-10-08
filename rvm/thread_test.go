@@ -1,6 +1,32 @@
 package rvm
 
-import "testing"
+import (
+	"fmt"
+	"testing"
+)
+
+func ExampleInstruction_String() {
+	fmt.Println(Instruction(mkTestInstr(cmpLess, RegisterIndex(5), constIndex(1023))))
+	fmt.Println(Instruction(mkTestInstr(cmpLequal, RegisterIndex(5), constIndex(10))))
+	fmt.Println(Instruction(mkTestInstr(cmpEqual, RegisterIndex(5), constIndex(10))))
+	fmt.Println(Instruction(mkTestInstr(cmpNotEqual, RegisterIndex(5), constIndex(10))))
+	fmt.Println(Instruction(mkTestInstr(cmpGreater, RegisterIndex(5), constIndex(10))))
+	fmt.Println(Instruction(mkTestInstr(cmpGequal, StackIndex(233), StackIndex(-233))))
+	fmt.Println(Instruction(mkTestInstr(cmpIncludes, StackIndex(255), StackIndex(-254))))
+	fmt.Println(Instruction(mkTestInstr(cmpExcludes, RegisterIndex(5), constIndex(10))))
+	fmt.Println(Instruction(mkBinaryInstr(OpAdd, StackIndex(-32), StackIndex(-32), StackIndex(-512))))
+
+	// Output:
+	// test %5 < const[1023]
+	// test %5 <= const[10]
+	// test %5 == const[10]
+	// test %5 <> const[10]
+	// test %5 > const[10]
+	// test stack[233] >= stack[-233]
+	// test stack[255] includes stack[-254]
+	// test %5 excludes const[10]
+	// add stack[-32] stack[-32] stack[-512]
+}
 
 func TestOpAdd(t *testing.T) {
 	th := NewThread()
