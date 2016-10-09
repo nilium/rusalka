@@ -259,3 +259,41 @@ func mkTestInstr(oper compareOp, want bool, argA, argB Index) (instr uint32) {
 
 	return instr
 }
+
+func mkPushPop(op Opcode, oprange int, arg Index) (instr uint32) {
+	switch {
+	case op != OpPush && op != OpPop:
+		panic(fmt.Errorf("op is not push or pop: %v", op))
+	case oprange < 1 || oprange > 64:
+		panic(fmt.Errorf("invalid push/pop range: %d not in 1..64", oprange))
+	}
+
+	instr = uint32(op<<1)&opRegMask |
+		(uint32(oprange-1)&0x3F)<<6
+
+	switch arg := arg.(type) {
+	case RegisterIndex:
+		if arg < 0 || arg+RegisterIndex(oprange) > registerCount {
+			panic(InvalidRegister(arg))
+		}
+		instr |= uint32(arg&opRegMask) << 14
+	case StackIndex:
+		if arg < -131072 || arg > 131071 {
+			panic(InvalidStackIndex(arg))
+		}
+		instr |= uint32(int32(arg<<14)) | uint32(opPushPopStack)
+	case constIndex:
+		if arg < 0 || arg > 262143 {
+			panic(InvalidConstIndex(arg))
+		}
+		instr |= uint32(arg&0x3FFFF)<<14 | uint32(opPushConst)
+	default:
+		req := "register, stack, or const"
+		if op == OpPop {
+			req = "register or stack"
+		}
+		panic(fmt.Errorf("invalid index type %T; must be %s", arg, req))
+	}
+
+	return instr
+}

@@ -47,6 +47,9 @@ const (
 	opXloadDstStack Instruction = 0x2000
 	opXloadSrcConst Instruction = 0x40000000
 	opXloadSrcStack Instruction = 0x80000000
+
+	opPushConst    Instruction = 0x1000
+	opPushPopStack Instruction = 0x2000
 )
 
 func (i Instruction) isExt() bool {
@@ -91,6 +94,22 @@ func (i Instruction) argB() Index {
 		return StackIndex(int32(i<<1) >> 22)
 	}
 	return RegisterIndex(ix & opRegMask)
+}
+
+func (i Instruction) pushPopRange() int {
+	return 1 + int((i>>6)&0x3F)
+}
+
+func (i Instruction) pushPopArg() Index {
+	if op := Opcode((i & instrOpMask) >> 1); op == OpPush && i&opPushConst != 0 {
+		return constIndex((i >> 14) & 0x3FFFF)
+	}
+
+	if i&opPushPopStack != 0 {
+		return StackIndex(int32(i) >> 14)
+	}
+
+	return RegisterIndex(i>>14) & opRegMask
 }
 
 func (i Instruction) cmpOp() compareOp {
@@ -196,10 +215,8 @@ func (i Instruction) String() string {
 		return fmt.Sprint(xbit, op, i.argB())
 	case OpLoad:
 		return fmt.Sprint(xbit, op, i.loadDst(), i.loadSrc())
-	case OpPop:
-		return fmt.Sprint(xbit, op, i.regOut())
-	case OpPush:
-		return fmt.Sprint(xbit, op, i.argB())
+	case OpPop, OpPush:
+		return fmt.Sprint(xbit, op, i.pushPopRange(), i.pushPopArg())
 	case OpNeg, OpNot, OpRound, OpDefer, OpJoin:
 		// TODO: Fix per-unary string (e.g., load differs from neg)
 		return fmt.Sprint(xbit, op, i.regOut(), i.argA(), i.argB())
