@@ -25,6 +25,18 @@ func (c codeTable) jump(offset int, src Index) codeTable {
 	return append(c, mkJumpInstr(offset, src))
 }
 
+func (c codeTable) push(sz int, src Index) codeTable {
+	return append(c, mkPushPop(OpPush, sz, src))
+}
+
+func (c codeTable) pop(sz int, dst Index) codeTable {
+	return append(c, mkPushPop(OpPop, sz, dst))
+}
+
+func (c codeTable) v() []uint32 {
+	return []uint32(c)
+}
+
 func mkLoadInstr(dst, src Index) (instr uint32) {
 	instr = uint32(OpLoad) << 1
 

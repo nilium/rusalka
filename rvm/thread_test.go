@@ -80,9 +80,9 @@ func TestOpAdd(t *testing.T) {
 	fn := funcData{
 		code: []uint32{
 			// r[3] = 4
-			mkBinaryInstr(OpLoad, RegisterIndex(31), RegisterIndex(0), constIndex(1)),
+			mkLoadInstr(RegisterIndex(31), constIndex(1)),
 			// r[3] = 4
-			mkBinaryInstr(OpLoad, RegisterIndex(11), RegisterIndex(0), StackIndex(-3)),
+			mkLoadInstr(RegisterIndex(11), StackIndex(-3)),
 			// r[2] = s[-3] + 10.3
 			mkBinaryInstr(OpAdd, RegisterIndex(11), RegisterIndex(11), constIndex(2)),
 			// r[2] += s[3]
@@ -109,14 +109,42 @@ func TestOpAdd(t *testing.T) {
 	})
 }
 
+func TestOpPushPop(t *testing.T) {
+	th := NewThread()
+
+	fn := funcData{
+		code: codeTable(nil).
+			push(2, constIndex(2)).                   // [3, 4]
+			push(2, constIndex(0)).                   // [3, 4, 1, 2]
+			pop(4, RegisterIndex(4)).                 // r[4...] = [3, 4, 1, 2]
+			load(RegisterIndex(3), RegisterIndex(5)). // t = r[5]
+			load(RegisterIndex(5), RegisterIndex(6)). // r[5] = r[6] -> [3, 1, 1, 2]
+			load(RegisterIndex(6), RegisterIndex(3)). // r[6] = t -> [3, 1, 4, 2]
+			push(2, RegisterIndex(6)).                // [4, 2]
+			push(2, RegisterIndex(4)).                // [4, 2, 3, 1]
+			v(),
+		consts: []Value{Int(1), Int(2), Int(3), Int(4)},
+	}
+
+	th.pushFrame(0, fn)
+
+	testRunThread(t, th)
+	testThreadState(t, th, []threadStateTest{
+		{StackIndex(0), Int(4)},
+		{StackIndex(1), Int(2)},
+		{StackIndex(2), Int(3)},
+		{StackIndex(3), Int(1)},
+	})
+}
+
 func TestOpBitwiseShift(t *testing.T) {
 	th := NewThread()
 
 	fn := funcData{
 		code: []uint32{
 			// r[3], r[6] = 1003, -1003
-			mkBinaryInstr(OpLoad, RegisterIndex(3), RegisterIndex(0), constIndex(0)),
-			mkBinaryInstr(OpLoad, RegisterIndex(6), RegisterIndex(0), constIndex(1)),
+			mkLoadInstr(RegisterIndex(3), constIndex(0)),
+			mkLoadInstr(RegisterIndex(6), constIndex(1)),
 			mkBinaryInstr(OpBitshift, RegisterIndex(4), RegisterIndex(3), constIndex(2)),
 			mkBinaryInstr(OpBitshift, RegisterIndex(5), RegisterIndex(3), constIndex(3)),
 			mkBinaryInstr(OpBitshift, RegisterIndex(7), RegisterIndex(6), constIndex(2)),
@@ -144,8 +172,8 @@ func TestOpArithShift(t *testing.T) {
 	fn := funcData{
 		code: []uint32{
 			// r[3], r[6] = 1003, -1003
-			mkBinaryInstr(OpLoad, RegisterIndex(3), RegisterIndex(0), constIndex(0)),
-			mkBinaryInstr(OpLoad, RegisterIndex(6), RegisterIndex(0), constIndex(1)),
+			mkLoadInstr(RegisterIndex(3), constIndex(0)),
+			mkLoadInstr(RegisterIndex(6), constIndex(1)),
 			mkBinaryInstr(OpArithshift, RegisterIndex(4), RegisterIndex(3), constIndex(2)),
 			mkBinaryInstr(OpArithshift, RegisterIndex(5), RegisterIndex(3), constIndex(3)),
 			mkBinaryInstr(OpArithshift, RegisterIndex(7), RegisterIndex(6), constIndex(2)),

@@ -239,7 +239,7 @@ var opFuncTable = [...]opFunc{
 		}
 	},
 
-	// push - - {reg|const|stack}
+	// push n src
 	OpPush: func(instr Instruction, vm *Thread) {
 		n := instr.pushPopRange()
 		switch src := instr.pushPopArg().(type) {
@@ -265,7 +265,7 @@ var opFuncTable = [...]opFunc{
 		}
 	},
 
-	// pop reg
+	// pop n dst
 	OpPop: func(instr Instruction, vm *Thread) {
 		n := instr.pushPopRange()
 		switch src := instr.pushPopArg().(type) {
