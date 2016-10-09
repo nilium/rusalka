@@ -18,15 +18,35 @@ import (
 type Instruction uint64
 
 const (
+	opRegMask = 0x3F
+
+	instrOpMask Instruction = 0x1F << 1
+
+	instrExtendedBit    Instruction = 0x1
+	instrExtendedOpMask Instruction = 0xFFF << 1
+
 	opBinOutStack  Instruction = 0x40
 	opBinArgAStack Instruction = 0x2000
 	opBinArgBConst Instruction = 0x100000
 	opBinArgBStack Instruction = 0x80000000
 
-	opCmpArgAConst Instruction = 0x200
-	opCmpArgAStack Instruction = 0x80000
-	opCmpArgBConst Instruction = 0x100000
-	opCmpArgBStack Instruction = 0x40000000
+	opCmpTestBit   Instruction = 0x200
+	opCmpArgAConst Instruction = 0x400
+	opCmpArgAStack Instruction = 0x100000
+	opCmpArgBConst Instruction = 0x200000
+	opCmpArgBStack Instruction = 0x80000000
+
+	opJumpLiteral Instruction = 0x40 // In-range non-variable jumps
+	opJumpConst   Instruction = 0x80 // For strange out of range jumps
+	opJumpStack   Instruction = 0x80000000
+
+	opLoadDstStack Instruction = 0x40
+	opLoadSrcConst Instruction = 0x4000
+	opLoadSrcStack Instruction = 0x8000
+
+	opXloadDstStack Instruction = 0x2000
+	opXloadSrcConst Instruction = 0x40000000
+	opXloadSrcStack Instruction = 0x80000000
 )
 
 func (i Instruction) isExt() bool {
@@ -34,24 +54,25 @@ func (i Instruction) isExt() bool {
 }
 
 func (i Instruction) Opcode() Opcode {
-	// If the instruction is extended... (probably have specialized instruction types at that point)
-	// if i&0x1 != 0 {
-	// }
-	return Opcode((i >> 1) & 0x1F)
+	// +extended
+	if i&instrExtendedBit != 0 {
+		return Opcode((i & instrExtendedOpMask) >> 1)
+	}
+	return Opcode((i & instrOpMask) >> 1)
 }
 
 func (i Instruction) regOut() Index {
 	if i&opBinOutStack != 0 {
 		return StackIndex(int32(i<<19) >> 26)
 	}
-	return RegisterIndex((i >> 7) & 0x3F)
+	return RegisterIndex((i >> 7) & opRegMask)
 }
 
 func (i Instruction) argA() Index {
 	if i&opBinArgAStack != 0 {
 		return StackIndex(int32(i<<12) >> 26)
 	}
-	return RegisterIndex((i >> 14) & 0x3F)
+	return RegisterIndex((i >> 14) & opRegMask)
 }
 
 func (i Instruction) argAX() int {
@@ -69,57 +90,131 @@ func (i Instruction) argB() Index {
 	} else if i&opBinArgBStack != 0 {
 		return StackIndex(int32(i<<1) >> 22)
 	}
-	return RegisterIndex(ix & 0x3F)
+	return RegisterIndex(ix & opRegMask)
 }
 
 func (i Instruction) cmpOp() compareOp {
 	return compareOp((i >> 6) & 0x7)
 }
 
+func (i Instruction) cmpWant() bool {
+	return i&opCmpTestBit != 0
+}
+
 func (i Instruction) cmpArgA() Index {
-	ix := uint32((i >> 10) & 0x3FF)
+	ix := uint32((i >> 11) & 0x3FF)
 	if i&opCmpArgAConst != 0 {
 		return constIndex(ix)
 	} else if i&opCmpArgAStack != 0 {
-		return StackIndex(int32(i<<13) >> 23)
+		return StackIndex(int32(i<<12) >> 23)
 	}
-	return RegisterIndex(ix & 0x3F)
+	return RegisterIndex(ix & opRegMask)
 }
 
 func (i Instruction) cmpArgB() Index {
-	ix := uint32((i >> 21) & 0x3FF)
+	ix := uint32((i >> 22) & 0x3FF)
 	if i&opCmpArgBConst != 0 {
 		return constIndex(ix)
 	} else if i&opCmpArgBStack != 0 {
-		return StackIndex(int32(i<<2) >> 23)
+		return StackIndex(int32(i<<1) >> 23)
 	}
-	return RegisterIndex(ix & 0x3F)
+	return RegisterIndex(ix & opRegMask)
+}
+
+func (i Instruction) jumpOffset() (offset int64, index Index) {
+	if i&opJumpLiteral != 0 {
+		return int64(int32(i) >> 7), nil
+	}
+
+	if i&opJumpConst != 0 {
+		return 0, constIndex((i >> 8) & 0xFFFFFF)
+	} else if i&opJumpStack != 0 {
+		return 0, StackIndex(int32(i<<1) >> 9)
+	}
+
+	return 0, RegisterIndex((i >> 8) & 0xFF)
+}
+
+func (i Instruction) loadDst() Index {
+	var (
+		stackF Instruction = 0x40
+		stackL uint        = 50
+		stackR uint        = 57
+		regR   uint        = 7
+	)
+
+	if i&instrExtendedBit != 0 {
+		stackF = 0x2000
+		stackL, stackR = 34, 48
+		regR = 14
+	}
+
+	if i&stackF == 0 {
+		return RegisterIndex(uint32(i>>regR) & opRegMask)
+	}
+
+	return StackIndex(int64(i<<stackL) >> stackR)
+}
+
+func (i Instruction) loadSrc() Index {
+	var (
+		stackF Instruction = 0x8000
+		stackL uint        = 32
+		stackR uint        = 48
+		constF Instruction = 0x4000
+		uiR    uint        = 16
+	)
+
+	if i&instrExtendedBit != 0 {
+		stackF = 0x80000000
+		stackL, stackR = 0, 32
+		constF = 0x40000000
+		uiR = 32
+	}
+
+	if i&stackF != 0 {
+		return StackIndex(int64(i<<stackL) >> stackR)
+	} else if i&constF != 0 {
+		return constIndex((i >> uiR))
+	}
+	return RegisterIndex((i >> uiR) & opRegMask)
 }
 
 func (i Instruction) String() string {
+	xbit := ""
+	if i.isExt() {
+		xbit = "x"
+	}
+
 	switch op := i.Opcode(); op {
 	// Binary
 	case OpAdd, OpSub, OpDiv, OpMul, OpPow, OpMod,
 		OpOr, OpAnd, OpXor, OpArithshift, OpBitshift:
-		return fmt.Sprint(op, i.regOut(), i.argA(), i.argB())
+		return fmt.Sprint(xbit, op, i.regOut(), i.argA(), i.argB())
 		// Unary
 	case OpReserve:
-		return fmt.Sprint(op, i.argB())
+		return fmt.Sprint(xbit, op, i.argB())
 	case OpLoad:
-		return fmt.Sprint(op, i.regOut(), i.argB())
+		return fmt.Sprint(xbit, op, i.loadDst(), i.loadSrc())
 	case OpPop:
-		return fmt.Sprint(op, i.regOut())
+		return fmt.Sprint(xbit, op, i.regOut())
 	case OpPush:
-		return fmt.Sprint(op, i.argB())
-	case OpNeg, OpNot, OpRound, OpJump, OpDefer, OpJoin:
+		return fmt.Sprint(xbit, op, i.argB())
+	case OpNeg, OpNot, OpRound, OpDefer, OpJoin:
 		// TODO: Fix per-unary string (e.g., load differs from neg)
-		return fmt.Sprint(op, i.regOut(), i.argA(), i.argB())
-	// Cond
+		return fmt.Sprint(xbit, op, i.regOut(), i.argA(), i.argB())
+	// Branch
+	case OpJump:
+		o, i := i.jumpOffset()
+		if i == nil {
+			return fmt.Sprint(xbit, op, o)
+		}
+		return fmt.Sprint(xbit, op, i)
 	case OpTest:
-		return fmt.Sprint(op, i.cmpArgA(), i.cmpOp(), i.cmpArgB())
+		return fmt.Sprint(xbit, op, " (", i.cmpArgA(), i.cmpOp(), i.cmpArgB(), ") == ", i.cmpWant())
 	// Frame
 	case OpCall, OpReturn:
-		return fmt.Sprint(op, i.regOut(), i.argA(), i.argB())
+		return fmt.Sprint(xbit, op, i.regOut(), i.argA(), i.argB())
 	default:
 		return "<unknown opcode for instruction " + strconv.FormatUint(uint64(i), 16) + ">"
 	}

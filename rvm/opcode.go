@@ -208,11 +208,35 @@ var opFuncTable = [...]opFunc{
 	},
 
 	OpTest: func(instr Instruction, vm *Thread) {
-		panic("unimplemented")
+		var (
+			op       = instr.cmpOp()
+			want, fn = op.comparator()
+			lhs      = instr.cmpArgA()
+			rhs      = instr.cmpArgB()
+		)
+
+		if (fn(lhs, rhs) == want) != instr.cmpWant() {
+			// test failed
+			vm.step(true)
+			return
+		}
+
+		// If the next instruction is a jump, execute it immediately
+		if sz, ji, ok := vm.step(false); ok && ji.Opcode() == OpJump {
+			if off, ix := ji.jumpOffset(); ix == nil {
+				vm.pc += sz + off
+			} else {
+				vm.pc += sz + int64(toint(ix.load(vm)))
+			}
+		}
 	},
 
 	OpJump: func(instr Instruction, vm *Thread) {
-		vm.pc += int64(toint(instr.argB().load(vm)))
+		if off, ix := instr.jumpOffset(); ix == nil {
+			vm.pc += off
+		} else {
+			vm.pc += int64(toint(ix.load(vm)))
+		}
 	},
 
 	// push - - {reg|const|stack}

@@ -97,6 +97,27 @@ func (th *Thread) pushFrame(ebpOffset int, fn funcData) {
 	}
 }
 
+func (th *Thread) step(advance bool) (n int64, i Instruction, ok bool) {
+	pc, codelen := th.pc, int64(len(th.code))
+	if pc >= codelen {
+		return 0, 0, false
+	}
+
+	n, i = 1, Instruction(th.code[th.pc])
+	if i&instrExtendedBit != 0 {
+		if pc++; pc >= codelen {
+			return 0, 0, false
+		}
+		n, i = 2, i|Instruction(th.code[pc])<<32
+	}
+
+	if advance {
+		th.pc += n
+	}
+
+	return n, i, true
+}
+
 func (th *Thread) replaceFrame(keep int, fn funcData) {
 	th.copyAndResizeStack(th.ebp, keep)
 	th.funcData = fn
@@ -156,12 +177,9 @@ func (th *Thread) RunProtected() (err error) {
 
 func (th *Thread) Run() {
 	for codelen := int64(len(th.code)); th.pc < codelen; {
-		pc := th.pc
-		th.pc++
-		instr := Instruction(th.code[pc])
-		if instr.isExt() && th.pc < codelen {
-			th.pc++
-			instr |= Instruction(th.code[pc]) << 32
+		_, instr, ok := th.step(true)
+		if !ok {
+			panic(fmt.Sprint("invalid instruction at code index ", th.pc))
 		}
 		instr.execer()(instr, th)
 	}

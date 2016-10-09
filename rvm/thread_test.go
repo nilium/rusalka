@@ -6,25 +6,51 @@ import (
 )
 
 func ExampleInstruction_String() {
-	fmt.Println(Instruction(mkTestInstr(cmpLess, RegisterIndex(5), constIndex(1023))))
-	fmt.Println(Instruction(mkTestInstr(cmpLequal, RegisterIndex(5), constIndex(10))))
-	fmt.Println(Instruction(mkTestInstr(cmpEqual, RegisterIndex(5), constIndex(10))))
-	fmt.Println(Instruction(mkTestInstr(cmpNotEqual, RegisterIndex(5), constIndex(10))))
-	fmt.Println(Instruction(mkTestInstr(cmpGreater, RegisterIndex(5), constIndex(10))))
-	fmt.Println(Instruction(mkTestInstr(cmpGequal, StackIndex(233), StackIndex(-233))))
-	fmt.Println(Instruction(mkTestInstr(cmpIncludes, StackIndex(255), StackIndex(-254))))
-	fmt.Println(Instruction(mkTestInstr(cmpExcludes, RegisterIndex(5), constIndex(10))))
+	fmt.Println(Instruction(mkTestInstr(cmpLess, true, RegisterIndex(5), constIndex(1023))))
+	fmt.Println(Instruction(mkTestInstr(cmpLequal, true, RegisterIndex(5), constIndex(10))))
+	fmt.Println(Instruction(mkTestInstr(cmpEqual, true, RegisterIndex(5), constIndex(10))))
+	fmt.Println(Instruction(mkTestInstr(cmpNotEqual, true, RegisterIndex(5), constIndex(10))))
+	fmt.Println(Instruction(mkTestInstr(cmpGreater, true, RegisterIndex(5), constIndex(10))))
+	fmt.Println(Instruction(mkTestInstr(cmpGequal, true, StackIndex(233), StackIndex(-233))))
+	fmt.Println(Instruction(mkTestInstr(cmpIncludes, true, StackIndex(255), StackIndex(-254))))
+	fmt.Println(Instruction(mkTestInstr(cmpExcludes, true, RegisterIndex(5), constIndex(10))))
+	fmt.Println(Instruction(mkLoadInstr(StackIndex(-64), constIndex(65535))))
+	fmt.Println(Instruction(mkLoadInstr(RegisterIndex(63), StackIndex(-32768))))
+	fmt.Println(Instruction(mkLoadInstr(RegisterIndex(2), RegisterIndex(1))))
+	fmt.Println(Instruction(mkXloadInstr(StackIndex(-32768), constIndex(4294967295))))
+	fmt.Println(Instruction(mkXloadInstr(RegisterIndex(63), StackIndex(-2147483648))))
+	fmt.Println(Instruction(mkXloadInstr(RegisterIndex(2), RegisterIndex(1))))
+	fmt.Println(Instruction(mkJumpInstr(50, nil)))
+	fmt.Println(Instruction(mkJumpInstr(-16777216, nil)))
+	fmt.Println(Instruction(mkJumpInstr(16777215, nil)))
+	fmt.Println(Instruction(mkJumpInstr(0, RegisterIndex(63))))
+	fmt.Println(Instruction(mkJumpInstr(0, RegisterIndex(0))))
+	fmt.Println(Instruction(mkJumpInstr(0, StackIndex(-4194304))))
+	fmt.Println(Instruction(mkJumpInstr(0, constIndex(16777215))))
 	fmt.Println(Instruction(mkBinaryInstr(OpAdd, StackIndex(-32), StackIndex(-32), StackIndex(-512))))
 
 	// Output:
-	// test %5 < const[1023]
-	// test %5 <= const[10]
-	// test %5 == const[10]
-	// test %5 <> const[10]
-	// test %5 > const[10]
-	// test stack[233] >= stack[-233]
-	// test stack[255] includes stack[-254]
-	// test %5 excludes const[10]
+	// test (%5 < const[1023]) == true
+	// test (%5 <= const[10]) == true
+	// test (%5 == const[10]) == true
+	// test (%5 <> const[10]) == true
+	// test (%5 > const[10]) == true
+	// test (stack[233] >= stack[-233]) == true
+	// test (stack[255] includes stack[-254]) == true
+	// test (%5 excludes const[10]) == true
+	// load stack[-64] const[65535]
+	// load %63 stack[-32768]
+	// load %esp %ebp
+	// xload stack[-32768] const[4294967295]
+	// xload %63 stack[-2147483648]
+	// xload %esp %ebp
+	// jump 50
+	// jump -16777216
+	// jump 16777215
+	// jump %63
+	// jump %pc
+	// jump stack[-4194304]
+	// jump const[16777215]
 	// add stack[-32] stack[-32] stack[-512]
 }
 
