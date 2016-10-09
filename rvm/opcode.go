@@ -242,7 +242,7 @@ var opFuncTable = [...]opFunc{
 	// push n src
 	OpPush: func(instr Instruction, vm *Thread) {
 		n := instr.pushPopRange()
-		switch src := instr.pushPopArg().(type) {
+		switch src := instr.pushArg().(type) {
 		case StackIndex:
 			var incr StackIndex = 1
 			if src < 0 {
@@ -260,15 +260,13 @@ var opFuncTable = [...]opFunc{
 			for i, top := src, src+constIndex(n); i < top; i++ {
 				vm.Push(i.load(vm))
 			}
-		default:
-			panic("unreachable")
 		}
 	},
 
 	// pop n dst
 	OpPop: func(instr Instruction, vm *Thread) {
 		n := instr.pushPopRange()
-		switch src := instr.pushPopArg().(type) {
+		switch src := instr.popArg().(type) {
 		case StackIndex:
 			if src < 0 {
 				for i := src + StackIndex(n-1); i >= src; i-- {
@@ -284,10 +282,6 @@ var opFuncTable = [...]opFunc{
 			for i := src + RegisterIndex(n-1); i >= src; i-- {
 				i.store(vm, vm.Pop())
 			}
-		case constIndex:
-			panic(errConstStore)
-		default:
-			panic("unreachable")
 		}
 	},
 

@@ -38,39 +38,33 @@ func (c codeTable) v() []uint32 {
 }
 
 func mkLoadInstr(dst, src Index) (instr uint32) {
-	instr = uint32(OpLoad) << 1
+	instr = opcodeBits(OpLoad)
 
 	switch dst := dst.(type) {
 	case RegisterIndex:
-		if dst < 0 || dst >= registerCount {
-			panic(InvalidRegister(dst))
-		}
-		instr |= uint32(dst&opRegMask) << 7
+		instr |= registerOp(dst, opLoadDstOff)
 	case StackIndex:
-		if dst < -64 || dst > 63 {
+		if !canStore(int64(dst), opLoadDstLen) {
 			panic(InvalidRegister(dst))
 		}
-		instr |= uint32(int32(dst<<25))>>18 | uint32(opLoadDstStack)
+		instr |= signedBits32(int32(dst), opLoadDstOff, opLoadDstLen) | uint32(opLoadDstStack)
 	default:
 		panic(fmt.Errorf("invalid index type %T; must be register or stack", dst))
 	}
 
 	switch src := src.(type) {
 	case RegisterIndex:
-		if src < 0 || src >= registerCount {
-			panic(InvalidRegister(src))
-		}
-		instr |= uint32(src&opRegMask) << 16
+		instr |= registerOp(src, opLoadSrcLen)
 	case constIndex:
-		if src < 0 || src > 65535 {
+		if !canStoreUnsigned(uint64(src), opLoadSrcLen) {
 			panic(InvalidConstIndex(src))
 		}
-		instr |= uint32(src)<<16 | uint32(opLoadSrcConst)
+		instr |= unsignedBits32(uint32(src), opLoadSrcOff, opLoadSrcLen) | uint32(opLoadSrcConst)
 	case StackIndex:
-		if src < -32768 || src > 32767 {
+		if !canStore(int64(src), opLoadSrcLen) {
 			panic(InvalidStackIndex(src))
 		}
-		instr |= uint32(int32(src<<16)) | uint32(opLoadSrcStack)
+		instr |= signedBits32(int32(src), opLoadSrcOff, opLoadSrcLen) | uint32(opLoadSrcStack)
 	default:
 		panic(fmt.Errorf("invalid index type %T; must be register, stack, or const", src))
 	}
@@ -83,31 +77,28 @@ func mkJumpInstr(offset int, src Index) (instr uint32) {
 		panic(fmt.Errorf("may not define an index (%v) and an offset (%d)", src, offset))
 	}
 
-	instr = uint32(OpJump) << 1
+	instr = opcodeBits(OpJump)
 
 	if src == nil {
-		if offset < -16777216 || offset > 16777215 {
+		if !canStore(int64(offset), opJumpLitLen) {
 			panic(fmt.Errorf("offset exceeds 25-bit range: %d", offset))
 		}
-		return instr | uint32(int32(offset<<7)) | uint32(opJumpLiteral)
+		return instr | signedBits32(int32(offset), opJumpLitOff, opJumpLitLen) | uint32(opJumpLiteral)
 	}
 
 	switch src := src.(type) {
 	case RegisterIndex:
-		if src < 0 || src >= registerCount {
-			panic(InvalidRegister(src))
-		}
-		instr |= uint32(src&opRegMask) << 8
+		instr |= registerOp(src, opJumpRelOff)
 	case constIndex:
-		if src < 0 || src > 16777215 {
+		if !canStoreUnsigned(uint64(src), opJumpRelLen) {
 			panic(InvalidConstIndex(src))
 		}
-		instr |= uint32(src)<<8 | uint32(opJumpConst)
+		instr |= unsignedBits32(uint32(src), opJumpRelOff, opJumpRelLen) | uint32(opJumpConst)
 	case StackIndex:
-		if src < -4194304 || src > 4194303 {
+		if !canStore(int64(src), opJumpStackLen) {
 			panic(InvalidStackIndex(src))
 		}
-		instr |= uint32(int32(src<<9))>>1 | uint32(opJumpStack)
+		instr |= signedBits32(int32(src), opJumpStackOff, opJumpStackLen) | uint32(opJumpStack)
 	default:
 		panic(fmt.Errorf("invalid index type %T; must be register, stack, or const", src))
 	}
@@ -117,39 +108,33 @@ func mkJumpInstr(offset int, src Index) (instr uint32) {
 
 func mkXloadInstr(dst, src Index) (instr uint64) {
 	instr = uint64(instrExtendedBit) |
-		uint64(OpLoad)<<1
+		xopcodeBits(OpLoad)
 
 	switch dst := dst.(type) {
 	case RegisterIndex:
-		if dst < 0 || dst >= registerCount {
-			panic(InvalidRegister(dst))
-		}
-		instr |= uint64(dst&opRegMask) << 14
+		instr |= xregisterOp(dst, opXloadDstOff)
 	case StackIndex:
-		if dst < -32768 || dst > 32767 {
+		if !canStore(int64(dst), opXloadDstLen) {
 			panic(InvalidRegister(dst))
 		}
-		instr |= uint64(int64(dst<<48))>>34 | uint64(opXloadDstStack)
+		instr |= signedBits64(int64(dst), opXloadDstOff, opXloadDstLen) | uint64(opXloadDstStack)
 	default:
 		panic(fmt.Errorf("invalid index type %T; must be register or stack", dst))
 	}
 
 	switch src := src.(type) {
 	case RegisterIndex:
-		if src < 0 || src >= registerCount {
-			panic(InvalidRegister(src))
-		}
-		instr |= uint64(src&opRegMask) << 32
+		instr |= xregisterOp(src, opXloadSrcLen)
 	case constIndex:
-		if src < 0 || src > 4294967295 {
+		if !canStoreUnsigned(uint64(src), opXloadSrcLen) {
 			panic(InvalidConstIndex(src))
 		}
-		instr |= uint64(src)<<32 | uint64(opXloadSrcConst)
+		instr |= unsignedBits64(uint64(src), opXloadSrcOff, opXloadSrcLen) | uint64(opXloadSrcConst)
 	case StackIndex:
-		if src < -2147483648 || src > 2147483647 {
+		if !canStore(int64(src), opXloadSrcLen) {
 			panic(InvalidStackIndex(src))
 		}
-		instr |= uint64(int64(src<<32)) | uint64(opXloadSrcStack)
+		instr |= signedBits64(int64(src), opXloadSrcOff, opXloadSrcLen) | uint64(opXloadSrcStack)
 	default:
 		panic(fmt.Errorf("invalid index type %T; must be register, stack, or const", src))
 	}
@@ -158,60 +143,45 @@ func mkXloadInstr(dst, src Index) (instr uint64) {
 }
 
 func mkBinaryInstr(op Opcode, out, argA, argB Index) (instr uint32) {
-	instr = uint32(op&0x1F) << 1
+	instr = opcodeBits(op)
 
-loop:
 	switch out := out.(type) {
-	case nil:
-		out = RegisterIndex(63)
-		goto loop
 	case RegisterIndex:
-		if out < 0 || out >= registerCount {
-			panic(InvalidRegister(out))
-		}
-		instr |= uint32(out&opRegMask) << 7
+		instr |= registerOp(out, opBinOutOff)
 	case StackIndex:
-		if out < -32 || out > 31 {
+		if !canStore(int64(out), opBinOutOff) {
 			panic(InvalidRegister(out))
 		}
-		instr |= uint32(int32(out<<26))>>19 | uint32(opBinOutStack)
+		instr |= signedBits32(int32(out), opBinOutOff, opBinOutLen) | uint32(opBinOutStack)
 	default:
 		panic(fmt.Errorf("invalid index type %T; must be register or stack", out))
 	}
 
 	switch argA := argA.(type) {
-	case nil:
 	case RegisterIndex:
-		if argA < 0 || argA >= registerCount {
-			panic(InvalidRegister(argA))
-		}
-		instr |= uint32(argA&opRegMask) << 14
+		instr |= registerOp(argA, opBinArgAOff)
 	case StackIndex:
-		if argA < -32 || argA > 31 {
+		if !canStore(int64(argA), opBinArgALen) {
 			panic(InvalidRegister(argA))
 		}
-		instr |= uint32(int32(argA<<26))>>12 | uint32(opBinArgAStack)
+		instr |= signedBits32(int32(argA), opBinArgAOff, opBinArgALen) | uint32(opBinArgAStack)
 	default:
 		panic(fmt.Errorf("invalid index type %T; must be register or stack", argA))
 	}
 
 	switch argB := argB.(type) {
-	case nil:
 	case RegisterIndex:
-		if argB < 0 || argB >= registerCount {
-			panic(InvalidRegister(argB))
-		}
-		instr |= uint32(argB&opRegMask) << 21
+		instr |= registerOp(argB, opBinArgBOff)
 	case constIndex:
-		if argB < 0 || argB > 2047 {
+		if !canStoreUnsigned(uint64(argB), opBinArgBLen) {
 			panic(InvalidConstIndex(argB))
 		}
-		instr |= uint32(argB&0x7FF)<<21 | uint32(opBinArgBConst)
+		instr |= unsignedBits32(uint32(argB), opBinArgBOff, opBinArgBLen) | uint32(opBinArgBConst)
 	case StackIndex:
-		if argB < -512 || argB > 511 {
-			panic(InvalidStackIndex(argB))
+		if !canStore(int64(argB), opBinArgBLen) {
+			panic(InvalidRegister(argB))
 		}
-		instr |= uint32(int32(argB<<22))>>1 | uint32(opBinArgBStack)
+		instr |= signedBits32(int32(argB), opBinArgBOff, opBinArgBStackLen) | uint32(opBinArgBStack)
 	default:
 		panic(fmt.Errorf("invalid index type %T; must be register, stack, or const", argB))
 	}
@@ -220,51 +190,43 @@ loop:
 }
 
 func mkTestInstr(oper compareOp, want bool, argA, argB Index) (instr uint32) {
-	instr = uint32(OpTest&0x1F)<<1 |
-		uint32(oper&0x7)<<6
+	instr = opcodeBits(OpTest) |
+		unsignedBits32(uint32(oper), opTestOperOff, opTestOperLen)
 
 	if want {
 		instr |= uint32(opCmpTestBit)
 	}
 
 	switch arg := argA.(type) {
-	case nil:
 	case RegisterIndex:
-		if arg < 0 || arg >= registerCount {
-			panic(InvalidRegister(arg))
-		}
-		instr |= uint32(arg&opRegMask) << 11
+		instr |= registerOp(arg, opTestArgAOff)
 	case constIndex:
-		if arg < 0 || arg > 1023 {
+		if !canStoreUnsigned(uint64(arg), opTestArgALen) {
 			panic(InvalidConstIndex(arg))
 		}
-		instr |= uint32(arg&0x3FF)<<11 | uint32(opCmpArgAConst)
+		instr |= unsignedBits32(uint32(arg), opTestArgAOff, opTestArgALen) | uint32(opCmpArgAConst)
 	case StackIndex:
-		if arg < -256 || arg > 255 {
+		if !canStore(int64(arg), opTestArgAStackLen) {
 			panic(InvalidStackIndex(arg))
 		}
-		instr |= uint32(int32(arg<<23))>>12 | uint32(opCmpArgAStack)
+		instr |= signedBits32(int32(arg), opTestArgAOff, opTestArgAStackLen) | uint32(opCmpArgAStack)
 	default:
 		panic(fmt.Errorf("invalid index type %T; must be register, stack, or const", arg))
 	}
 
 	switch arg := argB.(type) {
-	case nil:
 	case RegisterIndex:
-		if arg < 0 || arg >= registerCount {
-			panic(InvalidRegister(arg))
-		}
-		instr |= uint32(arg&opRegMask) << 22
+		instr |= registerOp(arg, opTestArgBOff)
 	case constIndex:
-		if arg < 0 || arg > 1023 {
+		if !canStoreUnsigned(uint64(arg), opTestArgBLen) {
 			panic(InvalidConstIndex(arg))
 		}
-		instr |= uint32(arg&0x3FF)<<22 | uint32(opCmpArgBConst)
+		instr |= unsignedBits32(uint32(arg), opTestArgBOff, opTestArgBLen) | uint32(opCmpArgBConst)
 	case StackIndex:
-		if arg < -256 || arg > 255 {
+		if !canStore(int64(arg), opTestArgBStackLen) {
 			panic(InvalidStackIndex(arg))
 		}
-		instr |= uint32(int32(arg<<23))>>1 | uint32(opCmpArgBStack)
+		instr |= signedBits32(int32(arg), opTestArgBOff, opTestArgBStackLen) | uint32(opCmpArgBStack)
 	default:
 		panic(fmt.Errorf("invalid index type %T; must be register, stack, or const", arg))
 	}
@@ -276,29 +238,29 @@ func mkPushPop(op Opcode, oprange int, arg Index) (instr uint32) {
 	switch {
 	case op != OpPush && op != OpPop:
 		panic(fmt.Errorf("op is not push or pop: %v", op))
-	case oprange < 1 || oprange > 64:
-		panic(fmt.Errorf("invalid push/pop range: %d not in 1..64", oprange))
+	case !canStoreUnsigned(uint64(oprange-1), opPushPopRangeLen):
+		panic(fmt.Errorf("invalid push/pop range: %d not in 1..%d", oprange, (1 << opPushPopRangeLen)))
 	}
 
-	instr = uint32(op<<1)&opRegMask |
-		(uint32(oprange-1)&0x3F)<<6
+	instr = opcodeBits(op) |
+		unsignedBits32(uint32(oprange-1), opPushPopRangeOff, opPushPopRangeLen)
 
 	switch arg := arg.(type) {
 	case RegisterIndex:
-		if arg < 0 || arg+RegisterIndex(oprange) > registerCount {
+		if arg+RegisterIndex(oprange) > registerCount {
 			panic(InvalidRegister(arg))
 		}
-		instr |= uint32(arg&opRegMask) << 14
+		instr |= registerOp(arg, opPushPopTargetOff)
 	case StackIndex:
-		if arg < -131072 || arg > 131071 {
+		if !canStore(int64(arg), opPushPopTargetLen) {
 			panic(InvalidStackIndex(arg))
 		}
-		instr |= uint32(int32(arg<<14)) | uint32(opPushPopStack)
+		instr |= signedBits32(int32(arg), opPushPopTargetOff, opPushPopTargetLen) | uint32(opPushPopStack)
 	case constIndex:
-		if arg < 0 || arg > 262143 {
+		if !canStoreUnsigned(uint64(arg), opPushPopTargetLen) {
 			panic(InvalidConstIndex(arg))
 		}
-		instr |= uint32(arg&0x3FFFF)<<14 | uint32(opPushConst)
+		instr |= unsignedBits32(uint32(arg), opPushPopTargetOff, opPushPopTargetLen) | uint32(opPushConst)
 	default:
 		req := "register, stack, or const"
 		if op == OpPop {
@@ -308,4 +270,55 @@ func mkPushPop(op Opcode, oprange int, arg Index) (instr uint32) {
 	}
 
 	return instr
+}
+
+func opcodeBits(op Opcode) uint32 {
+	return (uint32(op) & (1<<opBOpcodeLen - 1)) << opBOpcodeOff
+}
+
+func xopcodeBits(op Opcode) uint64 {
+	return (uint64(op) & (1<<opXOpcodeLen - 1)) << opXOpcodeOff
+}
+
+func xregisterOp(r RegisterIndex, pos uint) uint64 {
+	if r < 0 || r > registerCount {
+		panic(InvalidRegister(r))
+	}
+	return uint64(r&opRegMask) << pos
+}
+
+func registerOp(r RegisterIndex, pos uint) uint32 {
+	if r < 0 || r > registerCount {
+		panic(InvalidRegister(r))
+	}
+	return uint32(r&opRegMask) << pos
+}
+
+func signedBits64(i int64, pos, length uint) uint64 {
+	return (uint64(i<<(64-length)) >> (64 - (length + pos))) & ((1<<length - 1) << pos)
+}
+
+func signedBits32(i int32, pos, length uint) uint32 {
+	return uint32(i<<(32-length)) >> (32 - (length + pos)) & ((1<<length - 1) << pos)
+}
+
+func unsignedBits64(i uint64, pos, length uint) uint64 {
+	return uint64(i&(1<<length-1)) << pos
+}
+
+func unsignedBits32(i uint32, pos, length uint) uint32 {
+	return uint32(i&(1<<length-1)) << pos
+}
+
+func canStore(i int64, bits uint) bool {
+	bits-- // sign bit
+	var (
+		max int64 = 1<<bits - 1
+		min int64 = -max - 1
+	)
+	return i >= min && i <= max
+}
+
+func canStoreUnsigned(i uint64, bits uint) bool {
+	return i <= (^uint64(0) >> (64 - bits))
 }

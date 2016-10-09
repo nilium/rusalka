@@ -12,8 +12,6 @@ func TestInstructionCoding(t *testing.T) {
 		want  string
 	}
 
-	t.Parallel()
-
 	tests := []test{
 		{"test", Instruction(mkTestInstr(cmpLess, true, RegisterIndex(5), constIndex(1023))), "test (%5 < const[1023]) == true"},
 		{"test", Instruction(mkTestInstr(cmpLequal, true, RegisterIndex(5), constIndex(10))), "test (%5 <= const[10]) == true"},
@@ -62,6 +60,14 @@ func TestInstructionCoding(t *testing.T) {
 		{"pop", Instruction(mkPushPop(OpPop, 33, StackIndex(-131072))), "pop 33 stack[-131072]"},
 		{"pop", Instruction(mkPushPop(OpPop, 64, RegisterIndex(0))), "pop 64 %pc"},
 		{"pop", Instruction(mkPushPop(OpPop, 64, StackIndex(-131072))), "pop 64 stack[-131072]"},
+
+		{"load", Instruction(mkLoadInstr(RegisterIndex(31), constIndex(1))), "load %31 const[1]"},
+		{"load", Instruction(mkLoadInstr(RegisterIndex(11), StackIndex(-3))), "load %11 stack[-3]"},
+		{"add", Instruction(mkBinaryInstr(OpAdd, RegisterIndex(11), RegisterIndex(11), constIndex(2))), "add %11 %11 const[2]"},
+		{"add", Instruction(mkBinaryInstr(OpAdd, RegisterIndex(11), RegisterIndex(11), StackIndex(3))), "add %11 %11 stack[3]"},
+		{"add", Instruction(mkBinaryInstr(OpAdd, RegisterIndex(11), RegisterIndex(11), RegisterIndex(31))), "add %11 %11 %31"},
+		{"add", Instruction(mkBinaryInstr(OpAdd, RegisterIndex(11), RegisterIndex(11), constIndex(2))), "add %11 %11 const[2]"},
+		{"add", Instruction(mkBinaryInstr(OpSub, RegisterIndex(4), RegisterIndex(11), constIndex(1))), "sub %4 %11 const[1]"},
 	}
 
 	for i, tr := range tests {
@@ -69,6 +75,8 @@ func TestInstructionCoding(t *testing.T) {
 		t.Run(fmt.Sprint(i, " ", tr.name), func(t *testing.T) {
 			if got := tr.instr.String(); got != tr.want {
 				t.Errorf("instr.String() = %q; want %q", got, tr.want)
+			} else {
+				t.Log("instr = %016x; got = %q", uint64(tr.instr), got)
 			}
 		})
 	}
