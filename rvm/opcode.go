@@ -241,12 +241,54 @@ var opFuncTable = [...]opFunc{
 
 	// push - - {reg|const|stack}
 	OpPush: func(instr Instruction, vm *Thread) {
-		vm.Push(instr.argB().load(vm))
+		n := instr.pushPopRange()
+		switch src := instr.pushPopArg().(type) {
+		case StackIndex:
+			var incr StackIndex = 1
+			if src < 0 {
+				incr = -1
+			}
+
+			for i, top := src, src+StackIndex(n)*incr; i != top; i = i + incr {
+				vm.Push(i.load(vm))
+			}
+		case RegisterIndex:
+			for i, top := src, src+RegisterIndex(n); i < top; i++ {
+				vm.Push(i.load(vm))
+			}
+		case constIndex:
+			for i, top := src, src+constIndex(n); i < top; i++ {
+				vm.Push(i.load(vm))
+			}
+		default:
+			panic("unreachable")
+		}
 	},
 
 	// pop reg
 	OpPop: func(instr Instruction, vm *Thread) {
-		instr.regOut().store(vm, vm.Pop())
+		n := instr.pushPopRange()
+		switch src := instr.pushPopArg().(type) {
+		case StackIndex:
+			if src < 0 {
+				for i := src + StackIndex(n-1); i >= src; i-- {
+					i.store(vm, vm.Pop())
+				}
+				return
+			}
+
+			for i := src - StackIndex(n-1); i <= src; i++ {
+				i.store(vm, vm.Pop())
+			}
+		case RegisterIndex:
+			for i := src + RegisterIndex(n-1); i >= src; i-- {
+				i.store(vm, vm.Pop())
+			}
+		case constIndex:
+			panic(errConstStore)
+		default:
+			panic("unreachable")
+		}
 	},
 
 	OpReserve: func(instr Instruction, vm *Thread) {

@@ -79,10 +79,6 @@ func TestOpAdd(t *testing.T) {
 
 	fn := funcData{
 		code: []uint32{
-			// grow 4
-			mkBinaryInstr(OpReserve, RegisterIndex(0), RegisterIndex(0), constIndex(1)),
-			mkBinaryInstr(OpPush, RegisterIndex(0), RegisterIndex(0), constIndex(2)),
-			mkBinaryInstr(OpAdd, RegisterIndex(2), RegisterIndex(2), constIndex(3)),
 			// r[3] = 4
 			mkBinaryInstr(OpLoad, RegisterIndex(31), RegisterIndex(0), constIndex(1)),
 			// r[3] = 4
