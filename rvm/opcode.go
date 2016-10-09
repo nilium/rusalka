@@ -296,9 +296,8 @@ var opFuncTable = [...]opFunc{
 		vm.growStack(sz)
 	},
 
-	// load out - {reg|const|stack}
 	OpLoad: func(instr Instruction, vm *Thread) {
-		instr.regOut().store(vm, instr.argB().load(vm))
+		instr.loadDst().store(vm, instr.loadSrc().load(vm))
 	},
 
 	OpCall: func(instr Instruction, vm *Thread) {
