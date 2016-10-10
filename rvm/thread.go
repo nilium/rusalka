@@ -282,9 +282,6 @@ func (i constIndex) String() string {
 }
 
 func (i constIndex) load(th *Thread) Value {
-	if i < 0 || int(i) > len(th.consts) {
-		panic(InvalidConstIndex(i))
-	}
 	return th.consts[int(i)]
 }
 
@@ -303,9 +300,6 @@ func (i StackIndex) abs(th *Thread) (absIndex int) {
 		absIndex = n + absIndex
 	} else {
 		absIndex = th.ebp + absIndex
-	}
-	if absIndex < 0 || absIndex >= n {
-		panic(InvalidStackIndex(i))
 	}
 	return absIndex
 }
@@ -344,13 +338,12 @@ func (i RegisterIndex) load(th *Thread) Value {
 	case 2:
 		return Int(len(th.stack))
 	default:
-		ri := int(i - specialRegisters)
-		if ri >= 0 && ri < callRegisters {
-			return th.local[ri]
-		}
-		return th.reg[ri-callRegisters]
 	}
-	return nil
+	ri := int(i - specialRegisters)
+	if ri >= 0 && ri < callRegisters {
+		return th.local[ri]
+	}
+	return th.reg[ri-callRegisters]
 }
 
 func (i RegisterIndex) store(th *Thread, v Value) {
