@@ -76,7 +76,7 @@ func TestInstructionCoding(t *testing.T) {
 			if got := tr.instr.String(); got != tr.want {
 				t.Errorf("instr.String() = %q; want %q", got, tr.want)
 			} else {
-				t.Log("instr = %016x; got = %q", uint64(tr.instr), got)
+				t.Logf("instr = %016x; got = %q", uint64(tr.instr), got)
 			}
 		})
 	}
